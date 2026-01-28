@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Luma - Hotel My Dora Muhasebe",
-  description: "Hotel My Dora Muhasebe ve Nakit Akış Sistemi",
+  title: "Dashboard - My Dora",
+  description: "My Dora Operations System",
 };
 
 export default function RootLayout({
