@@ -1,91 +1,87 @@
-# Luma - Hotel My Dora Muhasebe Sistemi
+# Dashboard - Hotel My Dora Operations System
 
-Luma, Hotel My Dora için tasarlanmış minimal bir muhasebe ve nakit akış takip sistemidir.
+A comprehensive operations and management system designed for Hotel My Dora.
 
-## Özellikler
+## Modules
 
-- **Alacak ve Borç Takibi**: Tüm alacak ve borç kayıtlarını kolayca yönetin
-- **Kategori Yönetimi**: Resmi muhasebe kodlarına göre kategoriler oluşturun
-- **Hesap Yönetimi**: Kategorilere bağlı hesaplar oluşturun
-- **Defter Kayıtları**: Tarih, kategori, hesap, açıklama ve tutar bilgileriyle kayıt ekleyin
-- **Filtreleme**: Tarih aralığı ve kategoriye göre filtreleme
-- **Gruplama**: Kategoriye göre gruplu görünüm ve otomatik toplam hesaplama
-- **Kimlik Doğrulama**: Supabase Auth ile güvenli giriş
+### Accounting (Muhasebe)
+- **Receivables & Payables Tracking**: Easily manage all receivable and payable records
+- **Category Management**: Create categories based on official accounting codes
+- **Account Management**: Create accounts linked to categories
+- **Ledger Entries**: Add entries with date, category, account, description, and amount
+- **Filtering**: Filter by date range and category
+- **Grouping**: Group view by category with automatic totals
 
-## Teknoloji
+### More modules coming soon...
+
+## Features
+
+- **Authentication**: Secure login with Supabase Auth
+- **Modern UI**: Clean and responsive interface
+- **Real-time Data**: Powered by Supabase
+
+## Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript
 - **Styling**: TailwindCSS 4, shadcn/ui
 - **Backend**: Supabase (PostgreSQL + Auth)
 
-## Kurulum
+## Setup
 
-### 1. Bağımlılıkları Yükleyin
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Supabase Yapılandırması
+### 2. Supabase Configuration
 
-1. [Supabase](https://supabase.com) hesabı oluşturun
-2. Yeni bir proje oluşturun
-3. `supabase/schema.sql` dosyasındaki SQL komutlarını Supabase SQL Editor'de çalıştırın
-4. `.env.local.example` dosyasını `.env.local` olarak kopyalayın ve değerleri güncelleyin:
-
-```bash
-cp .env.local.example .env.local
-```
+1. Create a [Supabase](https://supabase.com) account
+2. Create a new project
+3. Run the SQL commands from `supabase/schema.sql` in the Supabase SQL Editor
+4. Create a `.env.local` file with your credentials:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-### 3. Kullanıcı Oluşturma
+### 3. Create User
 
-Supabase Dashboard > Authentication > Users bölümünden yeni kullanıcı oluşturun.
+Create a new user from Supabase Dashboard > Authentication > Users.
 
-### 4. Geliştirme Sunucusunu Başlatın
+### 4. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-Tarayıcıda [http://localhost:3000](http://localhost:3000) adresini açın.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Veritabanı Şeması
+## Database Schema
 
-### Categories (Kategoriler)
-- `id` (VARCHAR): Muhasebe kodu (örn: "102")
-- `name` (VARCHAR): Kategori adı
-- `created_at`, `updated_at`: Zaman damgaları
+### Categories
+- `id` (VARCHAR): Accounting code (e.g., "102")
+- `name` (VARCHAR): Category name
+- `created_at`, `updated_at`: Timestamps
 
-### Accounts (Hesaplar)
-- `id` (UUID): Benzersiz tanımlayıcı
-- `category_id` (VARCHAR): Bağlı kategori
-- `name` (VARCHAR): Hesap adı
-- `description` (TEXT): Açıklama
-- `created_at`, `updated_at`: Zaman damgaları
+### Accounts
+- `id` (UUID): Unique identifier
+- `category_id` (VARCHAR): Linked category
+- `name` (VARCHAR): Account name
+- `description` (TEXT): Description
+- `created_at`, `updated_at`: Timestamps
 
-### Ledger Entries (Defter Kayıtları)
-- `id` (UUID): Benzersiz tanımlayıcı
-- `date` (DATE): İşlem tarihi
-- `category_id` (VARCHAR): Kategori
-- `account_id` (UUID): Hesap
-- `statement` (TEXT): Açıklama
-- `receivable` (DOUBLE): Alacak tutarı
-- `debt` (DOUBLE): Borç tutarı
-- `created_at`, `updated_at`: Zaman damgaları
+### Ledger Entries
+- `id` (UUID): Unique identifier
+- `date` (DATE): Transaction date
+- `category_id` (VARCHAR): Category
+- `account_id` (UUID): Account
+- `statement` (TEXT): Description
+- `receivable` (DOUBLE): Receivable amount
+- `debt` (DOUBLE): Payable amount
+- `created_at`, `updated_at`: Timestamps
 
-## Kullanım
+## License
 
-1. **Giriş Yap**: E-posta ve şifre ile giriş yapın
-2. **Kategori Oluştur**: Önce muhasebe kategorilerinizi oluşturun (örn: 102 - Banka)
-3. **Hesap Oluştur**: Kategorilere bağlı hesaplar oluşturun
-4. **Kayıt Ekle**: Defter sayfasından alacak veya borç kayıtları ekleyin
-5. **Filtrele ve Görüntüle**: Tarih ve kategoriye göre filtreleyin, gruplu görünümde inceleyin
-
-## Lisans
-
-Bu proje Hotel My Dora için özel olarak geliştirilmiştir.
+This project is developed exclusively for Hotel My Dora.
