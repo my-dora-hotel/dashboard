@@ -4,11 +4,20 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+interface TableProps extends React.ComponentProps<"table"> {
+  stickyHeader?: boolean
+  maxHeight?: string
+}
+
+function Table({ className, stickyHeader, maxHeight, ...props }: TableProps) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn(
+        "relative w-full",
+        stickyHeader ? "overflow-auto" : "overflow-x-auto"
+      )}
+      style={stickyHeader ? { maxHeight: maxHeight || "calc(100vh - 200px)" } : undefined}
     >
       <table
         data-slot="table"

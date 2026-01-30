@@ -1,15 +1,26 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Account, Category, AccountWithCategory } from "@/types/database"
 import {
+  IconArrowDown,
+  IconArrowUp,
+  IconArrowsSort,
   IconDotsVertical,
   IconPlus,
+  IconX,
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -48,16 +59,30 @@ import { Badge } from "@/components/ui/badge"
 import { CategoryCombobox } from "@/components/category-combobox"
 import { toast } from "sonner"
 
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+  }).format(amount)
+}
+
 interface AccountFormData {
   category_id: string
   name: string
   description: string
 }
 
+type LedgerRow = { account_id: string; receivable: number; debt: number }
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountWithCategory[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [filterCategoryId, setFilterCategoryId] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [sortColumn, setSortColumn] = useState<"receivable" | "debt" | null>(null)
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -74,16 +99,21 @@ export default function AccountsPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const [accountsRes, categoriesRes] = await Promise.all([
+      const [accountsRes, categoriesRes, entriesRes] = await Promise.all([
         supabase.from("accounts").select("*, categories(*)").order("name"),
         supabase.from("categories").select("*").order("id"),
+        supabase
+          .from("ledger_entries")
+          .select("account_id, receivable, debt"),
       ])
 
       if (accountsRes.error) throw accountsRes.error
       if (categoriesRes.error) throw categoriesRes.error
+      if (entriesRes.error) throw entriesRes.error
 
       setAccounts((accountsRes.data as AccountWithCategory[]) || [])
       setCategories(categoriesRes.data || [])
+      setLedgerEntries(entriesRes.data || [])
     } catch {
       toast.error("Veriler yüklenirken bir hata oluştu")
     } finally {
@@ -94,6 +124,78 @@ export default function AccountsPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const filteredAccounts = useMemo(() => {
+    return accounts.filter((account) => {
+      // Category filter
+      if (filterCategoryId && account.category_id !== filterCategoryId) {
+        return false
+      }
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        const matchesName = account.name.toLowerCase().includes(query)
+        const matchesDescription = account.description?.toLowerCase().includes(query)
+        const matchesCategory = account.categories.name.toLowerCase().includes(query)
+        if (!matchesName && !matchesDescription && !matchesCategory) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [accounts, filterCategoryId, searchQuery])
+
+  const accountTotals = useMemo(() => {
+    const totals: Record<
+      string,
+      { totalReceivable: number; totalDebt: number }
+    > = {}
+    for (const entry of ledgerEntries) {
+      if (!totals[entry.account_id]) {
+        totals[entry.account_id] = { totalReceivable: 0, totalDebt: 0 }
+      }
+      totals[entry.account_id].totalReceivable += entry.receivable ?? 0
+      totals[entry.account_id].totalDebt += entry.debt ?? 0
+    }
+    return totals
+  }, [ledgerEntries])
+
+  const sortedAccounts = useMemo(() => {
+    if (!sortColumn) return filteredAccounts
+
+    return [...filteredAccounts].sort((a, b) => {
+      const aValue =
+        sortColumn === "receivable"
+          ? accountTotals[a.id]?.totalReceivable ?? 0
+          : accountTotals[a.id]?.totalDebt ?? 0
+      const bValue =
+        sortColumn === "receivable"
+          ? accountTotals[b.id]?.totalReceivable ?? 0
+          : accountTotals[b.id]?.totalDebt ?? 0
+
+      return sortDirection === "asc" ? aValue - bValue : bValue - aValue
+    })
+  }, [filteredAccounts, accountTotals, sortColumn, sortDirection])
+
+  const toggleSort = (column: "receivable" | "debt") => {
+    if (sortColumn === column) {
+      if (sortDirection === "desc") {
+        setSortDirection("asc")
+      } else {
+        // Reset sorting
+        setSortColumn(null)
+        setSortDirection("desc")
+      }
+    } else {
+      setSortColumn(column)
+      setSortDirection("desc")
+    }
+  }
+
+  const clearFilters = () => {
+    setFilterCategoryId("")
+    setSearchQuery("")
+  }
 
   const resetForm = () => {
     setFormData({ category_id: "", name: "", description: "" })
@@ -194,9 +296,39 @@ export default function AccountsPage() {
 
   return (
     <div className="flex flex-col gap-4 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-muted-foreground">Muhasebe hesaplarını yönetin</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            type="search"
+            placeholder="Hesap ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[250px]"
+          />
+          <Select
+            value={filterCategoryId || "all"}
+            onValueChange={(value) =>
+              setFilterCategoryId(value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tüm kategoriler" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm kategoriler</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(filterCategoryId || searchQuery) && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <IconX className="size-4" />
+              Filtreyi Temizle
+            </Button>
+          )}
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -261,52 +393,107 @@ export default function AccountsPage() {
         </Dialog>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="rounded-lg border">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">Yükleniyor...</p>
           </div>
-        ) : accounts.length === 0 ? (
+        ) : filteredAccounts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <p className="text-muted-foreground">Henüz hesap bulunmuyor</p>
-            {categories.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-2">
-                Önce bir kategori oluşturmalısınız
-              </p>
+            {accounts.length === 0 ? (
+              <>
+                <p className="text-muted-foreground">Henüz hesap bulunmuyor</p>
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Önce bir kategori oluşturmalısınız
+                  </p>
+                ) : (
+                  <Button
+                    variant="link"
+                    onClick={() => setIsCreateDialogOpen(true)}
+                  >
+                    İlk hesabı oluşturun
+                  </Button>
+                )}
+              </>
             ) : (
-              <Button
-                variant="link"
-                onClick={() => setIsCreateDialogOpen(true)}
-              >
-                İlk hesabı oluşturun
-              </Button>
+              <>
+                <p className="text-muted-foreground">
+                  {searchQuery
+                    ? `"${searchQuery}" için sonuç bulunamadı`
+                    : "Bu kategoride hesap bulunmuyor"}
+                </p>
+                <Button variant="link" onClick={clearFilters}>
+                  Filtreyi temizle
+                </Button>
+              </>
             )}
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-muted">
+          <Table stickyHeader>
+            <TableHeader className="bg-muted sticky top-0 z-10">
               <TableRow>
                 <TableHead>Hesap Adı</TableHead>
                 <TableHead>Kategori</TableHead>
                 <TableHead>Açıklama</TableHead>
-                <TableHead>Oluşturulma Tarihi</TableHead>
+                <TableHead className="text-right">
+                  <Button
+                    variant="ghost"
+                    className="-mr-3 h-8"
+                    onClick={() => toggleSort("receivable")}
+                  >
+                    Alacak
+                    {sortColumn === "receivable" ? (
+                      sortDirection === "asc" ? (
+                        <IconArrowUp className="ml-2 h-4 w-4" />
+                      ) : (
+                        <IconArrowDown className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <IconArrowsSort className="ml-2 h-4 w-4 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <Button
+                    variant="ghost"
+                    className="-mr-3 h-8"
+                    onClick={() => toggleSort("debt")}
+                  >
+                    Borç
+                    {sortColumn === "debt" ? (
+                      sortDirection === "asc" ? (
+                        <IconArrowUp className="ml-2 h-4 w-4" />
+                      ) : (
+                        <IconArrowDown className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <IconArrowsSort className="ml-2 h-4 w-4 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account) => (
+              {sortedAccounts.map((account) => (
                 <TableRow key={account.id}>
                   <TableCell className="font-medium">{account.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {account.categories.id} - {account.categories.name}
+                      {account.categories.name}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {account.description || "-"}
                   </TableCell>
-                  <TableCell>
-                    {new Date(account.created_at).toLocaleDateString("tr-TR")}
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      accountTotals[account.id]?.totalReceivable ?? 0
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(accountTotals[account.id]?.totalDebt ?? 0)}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

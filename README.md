@@ -1,4 +1,4 @@
-# Dashboard - Hotel My Dora Operations System
+# Dashboard - My Dora Operations System
 
 A comprehensive operations and management system designed for Hotel My Dora.
 

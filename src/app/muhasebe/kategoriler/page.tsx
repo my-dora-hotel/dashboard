@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Category } from "@/types/database"
 import {
   IconDotsVertical,
   IconPlus,
+  IconX,
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,6 +50,7 @@ import { toast } from "sonner"
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState<string>("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -78,6 +80,20 @@ export default function CategoriesPage() {
   useEffect(() => {
     fetchCategories()
   }, [fetchCategories])
+
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery) return categories
+    const query = searchQuery.toLowerCase()
+    return categories.filter((category) => {
+      const matchesId = category.id.toLowerCase().includes(query)
+      const matchesName = category.name.toLowerCase().includes(query)
+      return matchesId || matchesName
+    })
+  }, [categories, searchQuery])
+
+  const clearFilters = () => {
+    setSearchQuery("")
+  }
 
   const handleCreate = async () => {
     if (!formData.id || !formData.name) {
@@ -172,11 +188,21 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex flex-col gap-4 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-muted-foreground">
-            Muhasebe kategorilerini yönetin
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            type="search"
+            placeholder="Kategori ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-[250px]"
+          />
+          {searchQuery && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <IconX className="size-4" />
+              Filtreyi Temizle
+            </Button>
+          )}
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -235,24 +261,37 @@ export default function CategoriesPage() {
         </Dialog>
       </div>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="rounded-lg border">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">Yükleniyor...</p>
           </div>
-        ) : categories.length === 0 ? (
+        ) : filteredCategories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <p className="text-muted-foreground">Henüz kategori bulunmuyor</p>
-            <Button
-              variant="link"
-              onClick={() => setIsCreateDialogOpen(true)}
-            >
-              İlk kategoriyi oluşturun
-            </Button>
+            {categories.length === 0 ? (
+              <>
+                <p className="text-muted-foreground">Henüz kategori bulunmuyor</p>
+                <Button
+                  variant="link"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                >
+                  İlk kategoriyi oluşturun
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  &quot;{searchQuery}&quot; için sonuç bulunamadı
+                </p>
+                <Button variant="link" onClick={clearFilters}>
+                  Filtreyi temizle
+                </Button>
+              </>
+            )}
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-muted">
+          <Table stickyHeader>
+            <TableHeader className="bg-muted sticky top-0 z-10">
               <TableRow>
                 <TableHead>Kod</TableHead>
                 <TableHead>Ad</TableHead>
@@ -261,7 +300,7 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.map((category) => (
+              {filteredCategories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell className="font-mono font-medium">
                     {category.id}

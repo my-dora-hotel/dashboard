@@ -1,0 +1,53 @@
+---
+description: Always read PRD before making changes
+alwaysApply: true
+---
+
+# Project Context
+
+Before making any code changes, always read the PRD (Product Requirements Document) at `PRD.md` in the project root.
+
+## Required Actions
+
+1. **Read PRD first** - Understand the project requirements and coding guidelines
+2. **Follow Section 6 - Coding Guidelines** - Especially:
+   - Always use shadcn/ui components
+   - Follow shadcn documentation for recommended approaches
+   - No hacky CSS solutions or workarounds
+   - Extend components properly with props
+
+## shadcn/ui Usage - CRITICAL
+
+**Documentation:** https://ui.shadcn.com/docs
+
+- **NEVER develop custom UI components** - Only use shadcn/ui native components
+- **NEVER customize component internals** - Use components as-is from shadcn
+- Always check shadcn docs before implementing any UI feature
+- Use proper component props instead of CSS hacks
+- When extending components, add new props (e.g., `stickyHeader` for Table)
+- For features not available in shadcn, search shadcn docs/patterns first
+
+## Examples
+
+```typescript
+// ❌ BAD - Custom icon positioning
+<div className="relative">
+  <IconSearch className="absolute left-3 top-1/2 ..." />
+  <Input className="pl-9" />
+</div>
+
+// ✅ GOOD - Use shadcn native Input
+<Input type="search" placeholder="Search..." />
+```
+
+```typescript
+// ❌ BAD - Hacky overflow solution
+<div className="overflow-auto max-h-[calc(100vh-200px)]">
+  <Table>...</Table>
+</div>
+
+// ✅ GOOD - Proper component prop
+<Table stickyHeader>
+  <TableHeader className="sticky top-0">...</TableHeader>
+</Table>
+```
