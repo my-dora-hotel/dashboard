@@ -37,8 +37,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { StatementAutocomplete } from "@/components/statement-autocomplete"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -576,16 +576,31 @@ export function LedgerDataTable({
   const allowReceivable = categoryEntryType === "receivable" || categoryEntryType === "both"
   const allowDebt = categoryEntryType === "debt" || categoryEntryType === "both"
 
+  // Extract unique statements from entries for autocomplete suggestions
+  const statementSuggestions = React.useMemo(() => {
+    const statements = data
+      .map((entry) => entry.statement)
+      .filter((s): s is string => !!s && s.trim().length > 0)
+    // Get unique statements and sort by frequency (most used first)
+    const statementCount = new Map<string, number>()
+    statements.forEach((s) => {
+      statementCount.set(s, (statementCount.get(s) || 0) + 1)
+    })
+    return Array.from(statementCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([statement]) => statement)
+  }, [data])
+
   const renderEntryForm = (isEdit: boolean = false) => (
     <div className="space-y-6 py-6">
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label>Tarih</Label>
         <DatePicker
           date={formData.date}
           onDateChange={(date) => setFormData(prev => ({ ...prev, date }))}
         />
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label>Hesap</Label>
         <AccountCombobox
           accounts={accounts}
@@ -596,23 +611,23 @@ export function LedgerDataTable({
           Kategori hesap seçimine göre otomatik belirlenir
         </p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label htmlFor={isEdit ? "edit-statement" : "statement"}>
           Açıklama (İsteğe bağlı)
         </Label>
-        <Textarea
+        <StatementAutocomplete
           id={isEdit ? "edit-statement" : "statement"}
           placeholder="İşlem açıklaması"
           value={formData.statement}
-          onChange={(e) =>
-            setFormData(prev => ({ ...prev, statement: e.target.value }))
+          onValueChange={(value) =>
+            setFormData(prev => ({ ...prev, statement: value }))
           }
-          rows={4}
-          className="resize-none"
+          suggestions={statementSuggestions}
+          rows={2}
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label>İşlem Türü</Label>
           <ToggleGroup
             type="single"
@@ -649,7 +664,7 @@ export function LedgerDataTable({
             </p>
           )}
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label htmlFor={isEdit ? "edit-amount" : "amount"}>Tutar (TRY)</Label>
           <CurrencyInput
             id={isEdit ? "edit-amount" : "amount"}

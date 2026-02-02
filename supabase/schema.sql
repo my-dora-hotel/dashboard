@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS categories (
     id VARCHAR(50) PRIMARY KEY, -- Category code (e.g., "102")
     name VARCHAR(255) NOT NULL,
     entry_type VARCHAR(20) NOT NULL DEFAULT 'both' CHECK (entry_type IN ('debt', 'receivable', 'both')),
+    advance_period_days INTEGER NULL CHECK (advance_period_days IS NULL OR advance_period_days >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

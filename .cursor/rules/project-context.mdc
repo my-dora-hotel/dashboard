@@ -56,3 +56,46 @@ Before making any code changes, always read the PRD (Product Requirements Docume
   <TableHeader className="sticky top-0">...</TableHeader>
 </Table>
 ```
+
+## Form Spacing - ALWAYS USE THESE VALUES
+
+For consistent form layouts across the app, always use these Tailwind spacing classes:
+
+| Purpose | Class | Value |
+|---------|-------|-------|
+| **Between form sections** (field groups) | `space-y-6` | 24px |
+| **Within field group** (label → input → description) | `space-y-3` | 12px |
+| **Grid gap** (for side-by-side fields) | `gap-4` | 16px |
+
+### Form Structure Example
+
+```tsx
+// ✅ CORRECT form spacing
+<div className="space-y-6 py-4">           {/* Section spacing */}
+  <div className="grid grid-cols-2 gap-4"> {/* Side-by-side fields */}
+    <div className="space-y-3">            {/* Field group spacing */}
+      <Label>Field 1</Label>
+      <Input />
+    </div>
+    <div className="space-y-3">
+      <Label>Field 2</Label>
+      <Input />
+    </div>
+  </div>
+  <div className="space-y-3">              {/* Another field group */}
+    <Label>Field 3</Label>
+    <Select>...</Select>
+    <p className="text-xs text-muted-foreground">Helper text</p>
+  </div>
+</div>
+```
+
+```tsx
+// ❌ BAD - Inconsistent or arbitrary spacing
+<div className="space-y-4 py-4">
+  <div className="space-y-2">
+    <Label>...</Label>
+    <Input />
+  </div>
+</div>
+```

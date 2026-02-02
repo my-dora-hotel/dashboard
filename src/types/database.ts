@@ -41,6 +41,7 @@ export interface Database {
           id: string;
           name: string;
           entry_type: "debt" | "receivable" | "both";
+          advance_period_days: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -48,6 +49,7 @@ export interface Database {
           id: string;
           name: string;
           entry_type?: "debt" | "receivable" | "both";
+          advance_period_days?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -55,6 +57,7 @@ export interface Database {
           id?: string;
           name?: string;
           entry_type?: "debt" | "receivable" | "both";
+          advance_period_days?: number | null;
           created_at?: string;
           updated_at?: string;
         };

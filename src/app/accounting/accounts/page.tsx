@@ -333,8 +333,8 @@ export default function AccountsPage() {
                 Yeni bir muhasebe hesabı ekleyin ve bir kategoriye atayın.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
+            <div className="space-y-6 py-4">
+              <div className="space-y-3">
                 <Label>Kategori</Label>
                 <CategoryCombobox
                   categories={categories}
@@ -344,7 +344,7 @@ export default function AccountsPage() {
                   }
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="name">Hesap Adı</Label>
                 <Input
                   id="name"
@@ -355,7 +355,7 @@ export default function AccountsPage() {
                   }
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="description">Açıklama (İsteğe bağlı)</Label>
                 <Input
                   id="description"
@@ -524,8 +524,8 @@ export default function AccountsPage() {
             <DialogTitle>Hesabı Düzenle</DialogTitle>
             <DialogDescription>Hesap bilgilerini güncelleyin.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
               <Label>Kategori</Label>
               <CategoryCombobox
                 categories={categories}
@@ -535,7 +535,7 @@ export default function AccountsPage() {
                 }
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="edit-name">Hesap Adı</Label>
               <Input
                 id="edit-name"
@@ -545,7 +545,7 @@ export default function AccountsPage() {
                 }
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="edit-description">Açıklama (İsteğe bağlı)</Label>
               <Input
                 id="edit-description"

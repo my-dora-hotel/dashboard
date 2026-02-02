@@ -74,7 +74,8 @@ export default function CategoriesPage() {
     id: string
     name: string
     entry_type: "debt" | "receivable" | "both"
-  }>({ id: "", name: "", entry_type: "both" })
+    advance_period_weeks: number | ""
+  }>({ id: "", name: "", entry_type: "both", advance_period_weeks: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const supabase = createClient()
@@ -122,10 +123,16 @@ export default function CategoriesPage() {
 
     setIsSubmitting(true)
     try {
+      const advancePeriodDays =
+        formData.advance_period_weeks === ""
+          ? null
+          : Number(formData.advance_period_weeks) * 7
+
       const { error } = await supabase.from("categories").insert({
         id: formData.id,
         name: formData.name,
         entry_type: formData.entry_type,
+        advance_period_days: advancePeriodDays,
       })
 
       if (error) {
@@ -139,7 +146,7 @@ export default function CategoriesPage() {
 
       toast.success("Kategori başarıyla oluşturuldu")
       setIsCreateDialogOpen(false)
-      setFormData({ id: "", name: "", entry_type: "both" })
+      setFormData({ id: "", name: "", entry_type: "both", advance_period_weeks: "" })
       fetchCategories()
     } catch {
       toast.error("Kategori oluşturulurken bir hata oluştu")
@@ -156,8 +163,18 @@ export default function CategoriesPage() {
 
     setIsSubmitting(true)
     try {
-      const updatePayload: { name: string; entry_type?: "debt" | "receivable" | "both" } = {
+      const advancePeriodDays =
+        formData.advance_period_weeks === ""
+          ? null
+          : Number(formData.advance_period_weeks) * 7
+
+      const updatePayload: {
+        name: string
+        entry_type?: "debt" | "receivable" | "both"
+        advance_period_days?: number | null
+      } = {
         name: formData.name,
+        advance_period_days: advancePeriodDays,
       }
       if ("entry_type" in selectedCategory && selectedCategory.entry_type !== undefined) {
         updatePayload.entry_type = formData.entry_type
@@ -173,7 +190,7 @@ export default function CategoriesPage() {
       toast.success("Kategori başarıyla güncellendi")
       setIsEditDialogOpen(false)
       setSelectedCategory(null)
-      setFormData({ id: "", name: "", entry_type: "both" })
+      setFormData({ id: "", name: "", entry_type: "both", advance_period_weeks: "" })
       fetchCategories()
     } catch (err) {
       const message = err instanceof Error ? err.message : "Kategori güncellenirken bir hata oluştu"
@@ -205,10 +222,15 @@ export default function CategoriesPage() {
 
   const openEditDialog = (category: Category) => {
     setSelectedCategory(category)
+    const advanceWeeks =
+      category.advance_period_days != null
+        ? Math.round(category.advance_period_days / 7)
+        : ""
     setFormData({
       id: category.id,
       name: category.name,
       entry_type: category.entry_type ?? "both",
+      advance_period_weeks: advanceWeeks,
     })
     setIsEditDialogOpen(true)
   }
@@ -240,7 +262,7 @@ export default function CategoriesPage() {
           <DialogTrigger asChild>
             <Button
               size="sm"
-              onClick={() => setFormData({ id: "", name: "", entry_type: "both" })}
+              onClick={() => setFormData({ id: "", name: "", entry_type: "both", advance_period_weeks: "" })}
             >
               <IconPlus className="size-4" />
               <span className="hidden lg:inline">Yeni Kategori</span>
@@ -254,30 +276,32 @@ export default function CategoriesPage() {
                 kodunu temsil eder.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="code">Kategori Kodu</Label>
-                <Input
-                  id="code"
-                  placeholder="Örn: 102"
-                  value={formData.id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, id: e.target.value })
-                  }
-                />
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label htmlFor="code">Kod</Label>
+                  <Input
+                    id="code"
+                    placeholder="Örn: 102"
+                    value={formData.id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, id: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="name">Ad</Label>
+                  <Input
+                    id="name"
+                    placeholder="Örn: Banka"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Kategori Adı</Label>
-                <Input
-                  id="name"
-                  placeholder="Örn: Banka"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label htmlFor="entry_type">İşlem Türü</Label>
                 <Select
                   value={formData.entry_type}
@@ -285,7 +309,7 @@ export default function CategoriesPage() {
                     setFormData({ ...formData, entry_type: value })
                   }
                 >
-                  <SelectTrigger id="entry_type">
+                  <SelectTrigger id="entry_type" className="w-full">
                     <SelectValue placeholder="Seçin" />
                   </SelectTrigger>
                   <SelectContent>
@@ -299,6 +323,27 @@ export default function CategoriesPage() {
                 <p className="text-xs text-muted-foreground">
                   Bu kategorideki hesaplar için Defter kaydında yalnızca seçilen
                   tür (Borç / Alacak) kullanılabilir.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="advance_period_weeks">Avans süresi (hafta)</Label>
+                <Input
+                  id="advance_period_weeks"
+                  type="number"
+                  min={0}
+                  placeholder="Örn: 2"
+                  value={formData.advance_period_weeks === "" ? "" : formData.advance_period_weeks}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setFormData({
+                      ...formData,
+                      advance_period_weeks: v === "" ? "" : Number(v),
+                    })
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  İsteğe bağlı. Bu kategorideki işlemlerin ne kadar süre önceden
+                  planlanabileceğini (hafta cinsinden) belirtir.
                 </p>
               </div>
             </div>
@@ -352,6 +397,7 @@ export default function CategoriesPage() {
                 <TableHead>Kod</TableHead>
                 <TableHead>Ad</TableHead>
                 <TableHead>İşlem Türü</TableHead>
+                <TableHead>Avans süresi</TableHead>
                 <TableHead>Oluşturulma Tarihi</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
@@ -367,6 +413,11 @@ export default function CategoriesPage() {
                     <Badge variant="outline" className="text-muted-foreground px-1.5">
                       {ENTRY_TYPE_OPTIONS.find((o) => o.value === (category.entry_type ?? "both"))?.label ?? "Borç & Alacak"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {category.advance_period_days != null
+                      ? `${Math.round(category.advance_period_days / 7)} hafta`
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     {new Date(category.created_at).toLocaleDateString("tr-TR")}
@@ -413,22 +464,24 @@ export default function CategoriesPage() {
               Kategori adını güncelleyin. Kategori kodu değiştirilemez.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-code">Kategori Kodu</Label>
-              <Input id="edit-code" value={formData.id} disabled />
+          <div className="space-y-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <Label htmlFor="edit-code">Kod</Label>
+                <Input id="edit-code" value={formData.id} disabled />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="edit-name">Ad</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Kategori Adı</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="edit-entry_type">İşlem Türü</Label>
               <Select
                 value={formData.entry_type}
@@ -436,7 +489,7 @@ export default function CategoriesPage() {
                   setFormData({ ...formData, entry_type: value })
                 }
               >
-                <SelectTrigger id="edit-entry_type">
+                <SelectTrigger id="edit-entry_type" className="w-full">
                   <SelectValue placeholder="Seçin" />
                 </SelectTrigger>
                 <SelectContent>
@@ -450,6 +503,27 @@ export default function CategoriesPage() {
               <p className="text-xs text-muted-foreground">
                 Bu kategorideki hesaplar için Defter kaydında yalnızca seçilen
                 tür kullanılabilir.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label htmlFor="edit-advance_period_weeks">Avans süresi (hafta)</Label>
+              <Input
+                id="edit-advance_period_weeks"
+                type="number"
+                min={0}
+                placeholder="Örn: 2"
+                value={formData.advance_period_weeks === "" ? "" : formData.advance_period_weeks}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setFormData({
+                    ...formData,
+                    advance_period_weeks: v === "" ? "" : Number(v),
+                  })
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                İsteğe bağlı. Bu kategorideki işlemlerin ne kadar süre önceden
+                planlanabileceğini (hafta cinsinden) belirtir.
               </p>
             </div>
           </div>
