@@ -16,13 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { CategoryCombobox } from "@/components/category-combobox"
 import { DateRangeFilter } from "@/components/date-range-filter"
 import { LedgerDataTable } from "@/components/ledger-data-table"
 import { LedgerChart } from "@/components/ledger-chart"
@@ -244,24 +238,15 @@ export default function LedgerPage() {
                 setFilterEndDate(end)
               }}
             />
-            <Select
-              value={filterCategoryId || "all"}
-              onValueChange={(value) =>
-                setFilterCategoryId(value === "all" ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Tüm kategoriler" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm kategoriler</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-[200px]">
+              <CategoryCombobox
+                categories={categories}
+                value={filterCategoryId}
+                onValueChange={setFilterCategoryId}
+                placeholder="Tüm kategoriler"
+                includeAllOption
+              />
+            </div>
             {filterCategoryId && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <IconX className="size-4" />

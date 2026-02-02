@@ -8,6 +8,7 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -45,7 +46,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
+import { normalizeForSearch } from "@/lib/search-utils"
+
+const ENTRY_TYPE_OPTIONS: { value: "debt" | "receivable" | "both"; label: string }[] = [
+  { value: "debt", label: "Borç" },
+  { value: "receivable", label: "Alacak" },
+  { value: "both", label: "Borç & Alacak" },
+]
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -55,7 +70,11 @@ export default function CategoriesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
-  const [formData, setFormData] = useState({ id: "", name: "" })
+  const [formData, setFormData] = useState<{
+    id: string
+    name: string
+    entry_type: "debt" | "receivable" | "both"
+  }>({ id: "", name: "", entry_type: "both" })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const supabase = createClient()
@@ -83,10 +102,10 @@ export default function CategoriesPage() {
 
   const filteredCategories = useMemo(() => {
     if (!searchQuery) return categories
-    const query = searchQuery.toLowerCase()
+    const query = normalizeForSearch(searchQuery)
     return categories.filter((category) => {
-      const matchesId = category.id.toLowerCase().includes(query)
-      const matchesName = category.name.toLowerCase().includes(query)
+      const matchesId = normalizeForSearch(category.id).includes(query)
+      const matchesName = normalizeForSearch(category.name).includes(query)
       return matchesId || matchesName
     })
   }, [categories, searchQuery])
@@ -106,6 +125,7 @@ export default function CategoriesPage() {
       const { error } = await supabase.from("categories").insert({
         id: formData.id,
         name: formData.name,
+        entry_type: formData.entry_type,
       })
 
       if (error) {
@@ -119,7 +139,7 @@ export default function CategoriesPage() {
 
       toast.success("Kategori başarıyla oluşturuldu")
       setIsCreateDialogOpen(false)
-      setFormData({ id: "", name: "" })
+      setFormData({ id: "", name: "", entry_type: "both" })
       fetchCategories()
     } catch {
       toast.error("Kategori oluşturulurken bir hata oluştu")
@@ -136,9 +156,16 @@ export default function CategoriesPage() {
 
     setIsSubmitting(true)
     try {
+      const updatePayload: { name: string; entry_type?: "debt" | "receivable" | "both" } = {
+        name: formData.name,
+      }
+      if ("entry_type" in selectedCategory && selectedCategory.entry_type !== undefined) {
+        updatePayload.entry_type = formData.entry_type
+      }
+
       const { error } = await supabase
         .from("categories")
-        .update({ name: formData.name })
+        .update(updatePayload)
         .eq("id", selectedCategory.id)
 
       if (error) throw error
@@ -146,10 +173,11 @@ export default function CategoriesPage() {
       toast.success("Kategori başarıyla güncellendi")
       setIsEditDialogOpen(false)
       setSelectedCategory(null)
-      setFormData({ id: "", name: "" })
+      setFormData({ id: "", name: "", entry_type: "both" })
       fetchCategories()
-    } catch {
-      toast.error("Kategori güncellenirken bir hata oluştu")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Kategori güncellenirken bir hata oluştu"
+      toast.error(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -177,7 +205,11 @@ export default function CategoriesPage() {
 
   const openEditDialog = (category: Category) => {
     setSelectedCategory(category)
-    setFormData({ id: category.id, name: category.name })
+    setFormData({
+      id: category.id,
+      name: category.name,
+      entry_type: category.entry_type ?? "both",
+    })
     setIsEditDialogOpen(true)
   }
 
@@ -208,7 +240,7 @@ export default function CategoriesPage() {
           <DialogTrigger asChild>
             <Button
               size="sm"
-              onClick={() => setFormData({ id: "", name: "" })}
+              onClick={() => setFormData({ id: "", name: "", entry_type: "both" })}
             >
               <IconPlus className="size-4" />
               <span className="hidden lg:inline">Yeni Kategori</span>
@@ -245,6 +277,30 @@ export default function CategoriesPage() {
                   }
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="entry_type">İşlem Türü</Label>
+                <Select
+                  value={formData.entry_type}
+                  onValueChange={(value: "debt" | "receivable" | "both") =>
+                    setFormData({ ...formData, entry_type: value })
+                  }
+                >
+                  <SelectTrigger id="entry_type">
+                    <SelectValue placeholder="Seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENTRY_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Bu kategorideki hesaplar için Defter kaydında yalnızca seçilen
+                  tür (Borç / Alacak) kullanılabilir.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -261,7 +317,7 @@ export default function CategoriesPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">Yükleniyor...</p>
@@ -295,6 +351,7 @@ export default function CategoriesPage() {
               <TableRow>
                 <TableHead>Kod</TableHead>
                 <TableHead>Ad</TableHead>
+                <TableHead>İşlem Türü</TableHead>
                 <TableHead>Oluşturulma Tarihi</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
@@ -306,6 +363,11 @@ export default function CategoriesPage() {
                     {category.id}
                   </TableCell>
                   <TableCell>{category.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-muted-foreground px-1.5">
+                      {ENTRY_TYPE_OPTIONS.find((o) => o.value === (category.entry_type ?? "both"))?.label ?? "Borç & Alacak"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     {new Date(category.created_at).toLocaleDateString("tr-TR")}
                   </TableCell>
@@ -344,7 +406,7 @@ export default function CategoriesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Kategoriyi Düzenle</DialogTitle>
             <DialogDescription>
@@ -365,6 +427,30 @@ export default function CategoriesPage() {
                   setFormData({ ...formData, name: e.target.value })
                 }
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-entry_type">İşlem Türü</Label>
+              <Select
+                value={formData.entry_type}
+                onValueChange={(value: "debt" | "receivable" | "both") =>
+                  setFormData({ ...formData, entry_type: value })
+                }
+              >
+                <SelectTrigger id="edit-entry_type">
+                  <SelectValue placeholder="Seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENTRY_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Bu kategorideki hesaplar için Defter kaydında yalnızca seçilen
+                tür kullanılabilir.
+              </p>
             </div>
           </div>
           <DialogFooter>

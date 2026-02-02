@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { normalizeForSearch } from "@/lib/search-utils"
 import { AccountWithCategory } from "@/types/database";
 
 interface AccountComboboxProps {
@@ -49,17 +50,25 @@ export function AccountCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full min-w-0 justify-between gap-2"
           disabled={disabled}
         >
-          {selectedAccount
-            ? selectedAccount.name
-            : "Hesap seçin..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <span className="min-w-0 truncate text-left">
+            {selectedAccount
+              ? selectedAccount.name
+              : "Hesap seçin..."}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
-        <Command>
+        <Command
+          filter={(value, search) =>
+            normalizeForSearch(value).includes(normalizeForSearch(search))
+              ? 1
+              : 0
+          }
+        >
           <CommandInput placeholder="Hesap ara..." />
           <CommandList>
             <CommandEmpty>Hesap bulunamadı.</CommandEmpty>

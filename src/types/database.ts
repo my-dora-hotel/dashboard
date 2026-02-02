@@ -40,18 +40,21 @@ export interface Database {
         Row: {
           id: string;
           name: string;
+          entry_type: "debt" | "receivable" | "both";
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id: string;
           name: string;
+          entry_type?: "debt" | "receivable" | "both";
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
+          entry_type?: "debt" | "receivable" | "both";
           created_at?: string;
           updated_at?: string;
         };

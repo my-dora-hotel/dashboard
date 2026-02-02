@@ -32,6 +32,7 @@
     "@supabase/supabase-js": "^2.93.2",
     "@tabler/icons-react": "^3.36.1",
     "@tanstack/react-table": "^8.21.3",
+    "asimile": "^1.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

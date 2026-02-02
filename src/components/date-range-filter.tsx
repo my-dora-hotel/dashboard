@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { format, subDays, subMonths, startOfDay, endOfDay } from "date-fns"
+import { format, subMonths, startOfDay, endOfDay } from "date-fns"
 import { tr } from "date-fns/locale"
 import { IconCalendar, IconChevronDown } from "@tabler/icons-react"
 import { type DateRange } from "react-day-picker"
@@ -14,11 +14,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+const PRESET_TODAY = "today"
+const PRESET_ALL = "all"
+
 const presetRanges = [
-  { label: "Son 7 gün", days: 7 },
-  { label: "Son 30 gün", days: 30 },
-  { label: "Son 90 gün", days: 90 },
-  { label: "Tüm Zamanlar", days: null },
+  { label: "Bugün", value: PRESET_TODAY as const },
+  { label: "Tüm Zamanlar", value: PRESET_ALL as const },
 ]
 
 interface DateRangeFilterProps {
@@ -35,18 +36,16 @@ export function DateRangeFilter({
   className,
 }: DateRangeFilterProps) {
   const [open, setOpen] = React.useState(false)
-  const [selectedPreset, setSelectedPreset] = React.useState<number | "all" | null>(90)
-  
+  const [selectedPreset, setSelectedPreset] = React.useState<typeof PRESET_TODAY | typeof PRESET_ALL | null>(PRESET_TODAY)
+
   // Internal state for the calendar selection
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined)
 
-  // Initialize with default 90 days on mount
+  // Initialize with "Bugün" (today) on mount
   React.useEffect(() => {
     if (!startDate && !endDate) {
       const today = new Date()
-      const end = endOfDay(today)
-      const start = startOfDay(subDays(today, 89))
-      onRangeChange(start, end)
+      onRangeChange(startOfDay(today), endOfDay(today))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -61,17 +60,17 @@ export function DateRangeFilter({
     setOpen(newOpen)
   }
 
-  const handlePresetClick = (days: number | null) => {
-    if (days === null) {
-      // "Tüm Zamanlar" - clear date filters
-      setSelectedPreset("all")
+  const handlePresetClick = (value: typeof PRESET_TODAY | typeof PRESET_ALL) => {
+    if (value === PRESET_ALL) {
+      setSelectedPreset(PRESET_ALL)
       setDateRange(undefined)
       onRangeChange(undefined, undefined)
     } else {
+      // Bugün = single day (today)
       const today = new Date()
+      const start = startOfDay(today)
       const end = endOfDay(today)
-      const start = startOfDay(subDays(today, days - 1))
-      setSelectedPreset(days)
+      setSelectedPreset(PRESET_TODAY)
       setDateRange({ from: start, to: end })
       onRangeChange(start, end)
     }
@@ -80,7 +79,7 @@ export function DateRangeFilter({
   // Standard onSelect handler - react-day-picker manages the two-click flow
   const handleSelect = (range: DateRange | undefined) => {
     setDateRange(range)
-    
+
     // When both dates are selected, apply the change (but don't auto-close)
     if (range?.from && range?.to) {
       setSelectedPreset(null)
@@ -89,14 +88,11 @@ export function DateRangeFilter({
   }
 
   const getDisplayText = () => {
-    if (selectedPreset === "all") {
+    if (selectedPreset === PRESET_ALL) {
       return "Tüm Zamanlar"
     }
-    if (selectedPreset && startDate && endDate) {
-      const preset = presetRanges.find((p) => p.days === selectedPreset)
-      if (preset) {
-        return `${preset.label} (${format(startDate, "d MMM", { locale: tr })} - ${format(endDate, "d MMM yyyy", { locale: tr })})`
-      }
+    if (selectedPreset === PRESET_TODAY && startDate && endDate) {
+      return `Bugün (${format(startDate, "d MMM yyyy", { locale: tr })})`
     }
     if (startDate && endDate) {
       return `${format(startDate, "d MMM yyyy", { locale: tr })} - ${format(endDate, "d MMM yyyy", { locale: tr })}`
@@ -120,7 +116,7 @@ export function DateRangeFilter({
           variant="outline"
           className={cn(
             "justify-start text-left font-normal",
-            !startDate && !endDate && selectedPreset !== "all" && "text-muted-foreground",
+            !startDate && !endDate && selectedPreset !== PRESET_ALL && "text-muted-foreground",
             className
           )}
         >
@@ -133,15 +129,13 @@ export function DateRangeFilter({
         <div className="p-3 border-b">
           <div className="flex flex-wrap gap-2">
             {presetRanges.map((preset) => {
-              const isSelected = preset.days === null 
-                ? selectedPreset === "all" 
-                : selectedPreset === preset.days
+              const isSelected = selectedPreset === preset.value
               return (
                 <Button
-                  key={preset.days ?? "all"}
+                  key={preset.value}
                   variant={isSelected ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handlePresetClick(preset.days)}
+                  onClick={() => handlePresetClick(preset.value)}
                 >
                   {preset.label}
                 </Button>

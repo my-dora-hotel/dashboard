@@ -5,13 +5,11 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconArrowsSort,
-  IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
   IconDotsVertical,
-  IconLayoutColumns,
 } from "@tabler/icons-react"
 import {
   flexRender,
@@ -33,7 +31,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -169,10 +166,17 @@ export function LedgerDataTable({
   const handleAccountChange = (accountId: string) => {
     const account = accounts.find((a) => a.id === accountId)
     if (account) {
-      setFormData(prev => ({
+      const entryType = account.categories?.entry_type ?? "both"
+      setFormData((prev) => ({
         ...prev,
         account_id: accountId,
         category_id: account.category_id,
+        type:
+          entryType === "debt"
+            ? "debt"
+            : entryType === "receivable"
+              ? "receivable"
+              : prev.type,
       }))
     }
   }
@@ -518,6 +522,23 @@ export function LedgerDataTable({
     getSortedRowModel: getSortedRowModel(),
   })
 
+  // Totals over all filtered rows (ignores pagination) — date/category filter + table column filters
+  const tableTotals = React.useMemo(() => {
+    const rows = table.getFilteredRowModel().rows
+    let totalReceivable = 0
+    let totalDebt = 0
+    rows.forEach((row) => {
+      const entry = row.original
+      totalReceivable += entry.receivable || 0
+      totalDebt += entry.debt || 0
+    })
+    return {
+      totalReceivable,
+      totalDebt,
+      balance: totalReceivable - totalDebt,
+    }
+  }, [data, columnFilters])
+
   // Group entries by category for grouped view
   const groupedEntries = React.useMemo(() => {
     const groups = new Map<string, {
@@ -547,6 +568,13 @@ export function LedgerDataTable({
       a.category.id.localeCompare(b.category.id)
     )
   }, [data])
+
+  const selectedAccount = formData.account_id
+    ? accounts.find((a) => a.id === formData.account_id)
+    : null
+  const categoryEntryType = selectedAccount?.categories?.entry_type ?? "both"
+  const allowReceivable = categoryEntryType === "receivable" || categoryEntryType === "both"
+  const allowDebt = categoryEntryType === "debt" || categoryEntryType === "both"
 
   const renderEntryForm = (isEdit: boolean = false) => (
     <div className="space-y-6 py-6">
@@ -595,13 +623,31 @@ export function LedgerDataTable({
             }}
             className="w-full"
           >
-            <ToggleGroupItem value="receivable" className="flex-1">
+            <ToggleGroupItem
+              value="receivable"
+              className="flex-1"
+              disabled={!allowReceivable}
+            >
               Alacak
             </ToggleGroupItem>
-            <ToggleGroupItem value="debt" className="flex-1">
+            <ToggleGroupItem
+              value="debt"
+              className="flex-1"
+              disabled={!allowDebt}
+            >
               Borç
             </ToggleGroupItem>
           </ToggleGroup>
+          {!allowReceivable && (
+            <p className="text-xs text-muted-foreground">
+              Bu kategori yalnızca Borç kaydı kabul eder
+            </p>
+          )}
+          {!allowDebt && (
+            <p className="text-xs text-muted-foreground">
+              Bu kategori yalnızca Alacak kaydı kabul eder
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor={isEdit ? "edit-amount" : "amount"}>Tutar (TRY)</Label>
@@ -647,40 +693,6 @@ export function LedgerDataTable({
               <SelectItem value="grouped">Kategoriler</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <IconLayoutColumns />
-                  <span className="hidden lg:inline">Sütunlar</span>
-                  <IconChevronDown />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {table
-                  .getAllColumns()
-                  .filter(
-                    (column) =>
-                      typeof column.accessorFn !== "undefined" &&
-                      column.getCanHide()
-                  )
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
         <TabsContent
           value="list"
@@ -737,6 +749,31 @@ export function LedgerDataTable({
                       Kayıt bulunamadı.
                     </TableCell>
                   </TableRow>
+                )}
+                {table.getRowModel().rows?.length > 0 && (
+                  <>
+                    <TableRow className="bg-muted/50 font-medium border-t-2">
+                      <TableCell colSpan={4} className="text-right">
+                        Genel Toplam
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(tableTotals.totalReceivable)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(tableTotals.totalDebt)}
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    <TableRow className="bg-muted font-semibold">
+                      <TableCell colSpan={4} className="text-right">
+                        Bakiye
+                      </TableCell>
+                      <TableCell colSpan={2} className="text-right">
+                        {formatCurrency(tableTotals.balance)}
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </>
                 )}
               </TableBody>
             </Table>

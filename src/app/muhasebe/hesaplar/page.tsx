@@ -15,13 +15,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -57,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { CategoryCombobox } from "@/components/category-combobox"
+import { normalizeForSearch } from "@/lib/search-utils"
 import { toast } from "sonner"
 
 function formatCurrency(amount: number): string {
@@ -133,10 +127,14 @@ export default function AccountsPage() {
       }
       // Search filter
       if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const matchesName = account.name.toLowerCase().includes(query)
-        const matchesDescription = account.description?.toLowerCase().includes(query)
-        const matchesCategory = account.categories.name.toLowerCase().includes(query)
+        const query = normalizeForSearch(searchQuery)
+        const matchesName = normalizeForSearch(account.name).includes(query)
+        const matchesDescription = account.description
+          ? normalizeForSearch(account.description).includes(query)
+          : false
+        const matchesCategory = normalizeForSearch(
+          account.categories.name
+        ).includes(query)
         if (!matchesName && !matchesDescription && !matchesCategory) {
           return false
         }
@@ -305,24 +303,15 @@ export default function AccountsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-[250px]"
           />
-          <Select
-            value={filterCategoryId || "all"}
-            onValueChange={(value) =>
-              setFilterCategoryId(value === "all" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Tüm kategoriler" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm kategoriler</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="w-[200px]">
+            <CategoryCombobox
+              categories={categories}
+              value={filterCategoryId}
+              onValueChange={setFilterCategoryId}
+              placeholder="Tüm kategoriler"
+              includeAllOption
+            />
+          </div>
           {(filterCategoryId || searchQuery) && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               <IconX className="size-4" />
@@ -393,7 +382,7 @@ export default function AccountsPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="overflow-hidden rounded-lg border">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <p className="text-muted-foreground">Yükleniyor...</p>
