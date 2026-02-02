@@ -14,12 +14,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-const PRESET_TODAY = "today"
-const PRESET_ALL = "all"
+const PRESET_TODAY = "today" as const
+const PRESET_ALL = "all" as const
 
 const presetRanges = [
-  { label: "Bugün", value: PRESET_TODAY as const },
-  { label: "Tüm Zamanlar", value: PRESET_ALL as const },
+  { label: "Bugün", value: PRESET_TODAY },
+  { label: "Tüm Zamanlar", value: PRESET_ALL },
 ]
 
 interface DateRangeFilterProps {
