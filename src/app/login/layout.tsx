@@ -10,7 +10,7 @@ export default async function LoginLayout({
   const { data: { user } } = await supabase.auth.getUser()
 
   if (user) {
-    redirect("/muhasebe")
+    redirect("/accounting")
   }
 
   return <>{children}</>;

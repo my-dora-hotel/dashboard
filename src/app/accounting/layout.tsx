@@ -7,7 +7,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-export default async function MuhasebeLayout({
+export default async function AccountingLayout({
   children,
 }: {
   children: React.ReactNode

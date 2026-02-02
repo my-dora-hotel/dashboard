@@ -7,6 +7,11 @@ alwaysApply: true
 
 Before making any code changes, always read the PRD (Product Requirements Document) at `PRD.md` in the project root.
 
+## Codebase language: English only
+
+- **All code must be in English**: file names, folder names, variable names, function names, type names, constants, and **all comments** (including JSDoc and inline comments).
+- **UI / copy may be in any language**: user-facing strings (labels, placeholders, toast messages, page titles, button text) can remain in Turkish or another language for localization. Only the code layer (identifiers + comments) is English-only.
+
 ## Required Actions
 
 1. **Read PRD first** - Understand the project requirements and coding guidelines

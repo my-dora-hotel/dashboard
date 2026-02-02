@@ -25,17 +25,17 @@ import {
 const navMain = [
   {
     title: "Defter",
-    url: "/muhasebe/defter",
+    url: "/accounting/ledger",
     icon: IconBook,
   },
   {
     title: "Kategoriler",
-    url: "/muhasebe/kategoriler",
+    url: "/accounting/categories",
     icon: IconCategory,
   },
   {
     title: "Hesaplar",
-    url: "/muhasebe/hesaplar",
+    url: "/accounting/accounts",
     icon: IconUsers,
   },
 ]
@@ -58,7 +58,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/muhasebe/defter">
+              <a href="/accounting/ledger">
                 <IconBuildingBank className="!size-5" />
                 <span className="text-base font-semibold">My Dora</span>
               </a>

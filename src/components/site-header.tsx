@@ -5,28 +5,28 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const pageTitles: Record<string, string> = {
-  "/muhasebe": "Genel Bakış",
-  "/muhasebe/defter": "Defter",
-  "/muhasebe/kategoriler": "Kategoriler",
-  "/muhasebe/hesaplar": "Hesaplar",
+  "/accounting": "Genel Bakış",
+  "/accounting/ledger": "Defter",
+  "/accounting/categories": "Kategoriler",
+  "/accounting/accounts": "Hesaplar",
   "/dashboard": "Dashboard",
 }
 
-// Modül isimleri - route prefix'ine göre
+// Module display names by route prefix
 const moduleNames: Record<string, string> = {
-  "/muhasebe": "Muhasebe",
+  "/accounting": "Muhasebe",
   "/dashboard": "Dashboard",
 }
 
 function getModuleName(pathname: string): string | null {
-  // En uzun eşleşen prefix'i bul
+  // Find longest matching prefix
   const matchingPrefixes = Object.keys(moduleNames).filter((prefix) =>
     pathname.startsWith(prefix)
   )
   
   if (matchingPrefixes.length === 0) return null
   
-  // En uzun eşleşeni seç (daha spesifik olan)
+  // Pick longest match (most specific)
   const bestMatch = matchingPrefixes.reduce((a, b) =>
     a.length > b.length ? a : b
   )

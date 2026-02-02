@@ -27,9 +27,9 @@ interface CategoryComboboxProps {
   value: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
-  /** Placeholder when no category is selected (e.g. "Tüm kategoriler") */
+  /** Placeholder when no category is selected (e.g. "All categories") */
   placeholder?: string;
-  /** When true, adds an "Tüm kategoriler" option at the top that sets value to empty */
+  /** When true, adds an "All categories" option at the top that sets value to empty */
   includeAllOption?: boolean;
 }
 

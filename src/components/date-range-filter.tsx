@@ -41,7 +41,7 @@ export function DateRangeFilter({
   // Internal state for the calendar selection
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined)
 
-  // Initialize with "Bugün" (today) on mount
+  // Initialize with today on mount
   React.useEffect(() => {
     if (!startDate && !endDate) {
       const today = new Date()
@@ -66,7 +66,7 @@ export function DateRangeFilter({
       setDateRange(undefined)
       onRangeChange(undefined, undefined)
     } else {
-      // Bugün = single day (today)
+      // Today = single day
       const today = new Date()
       const start = startOfDay(today)
       const end = endOfDay(today)

@@ -57,7 +57,7 @@ export function LoginForm({
       }
 
       toast.success("Giriş başarılı!")
-      router.push("/muhasebe/defter")
+      router.push("/accounting/ledger")
       router.refresh()
     } catch {
       toast.error("Bir hata oluştu. Lütfen tekrar deneyin.")

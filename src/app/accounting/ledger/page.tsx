@@ -25,12 +25,12 @@ import { toast } from "sonner"
 import { parseISO } from "date-fns"
 
 // Wrapper to animate on initial mount
-function AnimatedSlidingNumber({ 
-  value, 
+function AnimatedSlidingNumber({
+  value,
   locale = "tr-TR",
   minimumFractionDigits = 2,
-  maximumFractionDigits = 2
-}: { 
+  maximumFractionDigits = 2,
+}: {
   value: number
   locale?: string
   minimumFractionDigits?: number
@@ -56,8 +56,8 @@ function AnimatedSlidingNumber({
   }, [value, hasMounted])
 
   return (
-    <SlidingNumber 
-      value={displayValue} 
+    <SlidingNumber
+      value={displayValue}
       locale={locale}
       minimumFractionDigits={minimumFractionDigits}
       maximumFractionDigits={maximumFractionDigits}
@@ -82,7 +82,7 @@ export default function LedgerPage() {
   const [filterCategoryId, setFilterCategoryId] = useState<string>("")
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>()
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>()
-  
+
   // Create dialog state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
@@ -263,8 +263,8 @@ export default function LedgerPage() {
 
       {/* Row 3: Chart */}
       <div className="px-4 lg:px-6">
-        <LedgerChart 
-          entries={filteredEntries} 
+        <LedgerChart
+          entries={filteredEntries}
           startDate={filterStartDate}
           endDate={filterEndDate}
         />
