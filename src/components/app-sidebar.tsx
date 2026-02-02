@@ -24,7 +24,7 @@ import {
 
 const navMain = [
   {
-    title: "Defter",
+    title: "Kayıtlar",
     url: "/accounting/ledger",
     icon: IconBook,
   },
