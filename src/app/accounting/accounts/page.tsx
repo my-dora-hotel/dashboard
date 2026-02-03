@@ -161,19 +161,30 @@ export default function AccountsPage() {
   }, [ledgerEntries])
 
   const sortedAccounts = useMemo(() => {
-    if (!sortColumn) return filteredAccounts
+    const list = [...filteredAccounts]
 
-    return [...filteredAccounts].sort((a, b) => {
-      const aValue =
-        sortColumn === "receivable"
-          ? accountTotals[a.id]?.totalReceivable ?? 0
-          : accountTotals[a.id]?.totalDebt ?? 0
-      const bValue =
-        sortColumn === "receivable"
-          ? accountTotals[b.id]?.totalReceivable ?? 0
-          : accountTotals[b.id]?.totalDebt ?? 0
+    if (sortColumn) {
+      return list.sort((a, b) => {
+        const aValue =
+          sortColumn === "receivable"
+            ? accountTotals[a.id]?.totalReceivable ?? 0
+            : accountTotals[a.id]?.totalDebt ?? 0
+        const bValue =
+          sortColumn === "receivable"
+            ? accountTotals[b.id]?.totalReceivable ?? 0
+            : accountTotals[b.id]?.totalDebt ?? 0
 
-      return sortDirection === "asc" ? aValue - bValue : bValue - aValue
+        return sortDirection === "asc" ? aValue - bValue : bValue - aValue
+      })
+    }
+
+    // Default: sort by category name (alphabetically), then by account name within category
+    return list.sort((a, b) => {
+      const catA = a.categories?.name ?? ""
+      const catB = b.categories?.name ?? ""
+      const cmp = catA.localeCompare(catB, "tr")
+      if (cmp !== 0) return cmp
+      return (a.name ?? "").localeCompare(b.name ?? "", "tr")
     })
   }, [filteredAccounts, accountTotals, sortColumn, sortDirection])
 
