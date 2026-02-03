@@ -136,6 +136,18 @@ export default function LedgerPage() {
     })
   }, [entries, filterCategoryId, filterStartDate, filterEndDate])
 
+  // Unique statement suggestions from all ledger entries (DB-wide), for autocomplete
+  const statementSuggestions = useMemo(() => {
+    const statements = entries
+      .map((e) => e.statement)
+      .filter((s): s is string => !!s && s.trim().length > 0)
+    const count = new Map<string, number>()
+    statements.forEach((s) => count.set(s, (count.get(s) || 0) + 1))
+    return Array.from(count.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([s]) => s)
+  }, [entries])
+
   // Calculate totals (all time, not affected by filters)
   const totals = useMemo(() => {
     const totalReceivable = entries.reduce(
@@ -275,6 +287,7 @@ export default function LedgerPage() {
         initialData={filteredEntries}
         categories={categories}
         accounts={accounts}
+        statementSuggestions={statementSuggestions}
         onRefresh={fetchData}
         onEntryAdded={handleEntryAdded}
         onEntryDeleted={handleEntryDeleted}

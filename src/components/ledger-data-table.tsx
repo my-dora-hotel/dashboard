@@ -10,6 +10,9 @@ import {
   IconChevronsLeft,
   IconChevronsRight,
   IconDotsVertical,
+  IconPencil,
+  IconPlus,
+  IconTrash,
 } from "@tabler/icons-react"
 import {
   flexRender,
@@ -94,6 +97,8 @@ interface LedgerDataTableProps {
   initialData: LedgerEntryWithRelations[]
   categories: Category[]
   accounts: AccountWithCategory[]
+  /** Unique statement strings for autocomplete (e.g. from all ledger entries in DB, not filtered by date). */
+  statementSuggestions?: string[]
   onRefresh: () => void
   onEntryAdded?: (entry: LedgerEntryWithRelations) => void
   onEntryDeleted?: (entryId: string) => void
@@ -119,6 +124,25 @@ const initialFormData: EntryFormData = {
   amount: "",
 }
 
+// Multi-entry creation types
+interface EntryRowData {
+  id: string
+  account_id: string
+  category_id: string
+  statement: string
+  type: "receivable" | "debt"
+  amount: string
+}
+
+const createEmptyRow = (): EntryRowData => ({
+  id: crypto.randomUUID(),
+  account_id: "",
+  category_id: "",
+  statement: "",
+  type: "debt",
+  amount: "",
+})
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("tr-TR", {
     style: "currency",
@@ -130,6 +154,7 @@ export function LedgerDataTable({
   initialData,
   categories,
   accounts,
+  statementSuggestions: statementSuggestionsProp,
   onRefresh,
   onEntryAdded,
   onEntryDeleted,
@@ -157,6 +182,10 @@ export function LedgerDataTable({
   const [formData, setFormData] = React.useState<EntryFormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
+  // Multi-entry creation state
+  const [createDate, setCreateDate] = React.useState<Date | undefined>(new Date())
+  const [entryRows, setEntryRows] = React.useState<EntryRowData[]>([createEmptyRow()])
+
   const supabase = createClient()
 
   React.useEffect(() => {
@@ -183,66 +212,149 @@ export function LedgerDataTable({
 
   const resetForm = () => {
     setFormData(initialFormData)
+    // Reset multi-entry state
+    setCreateDate(new Date())
+    setEntryRows([createEmptyRow()])
   }
 
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    if (!open) resetForm()
+    setIsCreateDialogOpen(open)
+  }
+
+  // Multi-entry row management
+  const handleRowAccountChange = (rowId: string, accountId: string) => {
+    const account = accounts.find((a) => a.id === accountId)
+    if (account) {
+      const entryType = account.categories?.entry_type ?? "both"
+      setEntryRows((prev) =>
+        prev.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                account_id: accountId,
+                category_id: account.category_id,
+                type:
+                  entryType === "debt"
+                    ? "debt"
+                    : entryType === "receivable"
+                      ? "receivable"
+                      : row.type,
+              }
+            : row
+        )
+      )
+    }
+  }
+
+  const updateRow = (rowId: string, field: keyof EntryRowData, value: string) => {
+    setEntryRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+    )
+  }
+
+  const lastRowFirstCellRef = React.useRef<HTMLDivElement>(null)
+
+  const addRow = () => {
+    setEntryRows((prev) => [...prev, createEmptyRow()])
+    // Open the new row's Hesap (account) dropdown after render
+    setTimeout(() => {
+      const trigger = lastRowFirstCellRef.current?.querySelector<HTMLButtonElement>('button[role="combobox"]')
+      trigger?.click()
+    }, 0)
+  }
+
+  const removeRow = (rowId: string) => {
+    setEntryRows((prev) => {
+      if (prev.length === 1) return prev // Keep at least one row
+      return prev.filter((row) => row.id !== rowId)
+    })
+  }
+
+  const hasValidRow = React.useMemo(() => {
+    return entryRows.some((row) => {
+      if (!row.account_id || !row.category_id || !row.amount) return false
+      const amount = parseFloat(row.amount)
+      return !isNaN(amount) && amount > 0
+    })
+  }, [entryRows])
+
   const handleCreate = async () => {
-    if (
-      !formData.date ||
-      !formData.category_id ||
-      !formData.account_id ||
-      !formData.amount
-    ) {
-      toast.error("Lütfen tüm zorunlu alanları doldurun")
+    if (!createDate) {
+      toast.error("Lütfen tarih seçin")
       return
     }
 
-    const amount = parseFloat(formData.amount)
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Lütfen geçerli bir tutar girin")
+    // Validate all rows
+    const validRows = entryRows.filter(
+      (row) => row.account_id && row.category_id && row.amount
+    )
+
+    if (validRows.length === 0) {
+      toast.error("Lütfen en az bir geçerli kayıt girin")
       return
+    }
+
+    // Check for invalid amounts
+    for (const row of validRows) {
+      const amount = parseFloat(row.amount)
+      if (isNaN(amount) || amount <= 0) {
+        toast.error("Lütfen geçerli tutarlar girin")
+        return
+      }
     }
 
     setIsSubmitting(true)
     try {
-      const { data: newEntry, error } = await supabase
+      const entriesToInsert = validRows.map((row) => {
+        const amount = parseFloat(row.amount)
+        return {
+          date: format(createDate, "yyyy-MM-dd"),
+          category_id: row.category_id,
+          account_id: row.account_id,
+          statement: row.statement || null,
+          receivable: row.type === "receivable" ? amount : 0,
+          debt: row.type === "debt" ? amount : 0,
+        }
+      })
+
+      const { data: newEntries, error } = await supabase
         .from("ledger_entries")
-        .insert({
-          date: format(formData.date, "yyyy-MM-dd"),
-          category_id: formData.category_id,
-          account_id: formData.account_id,
-          statement: formData.statement || null,
-          receivable: formData.type === "receivable" ? amount : 0,
-          debt: formData.type === "debt" ? amount : 0,
-        })
+        .insert(entriesToInsert)
         .select("*, categories(*), accounts(*)")
-        .single()
 
       if (error) throw error
-      if (!newEntry) throw new Error("Kayıt oluşturulamadı")
+      if (!newEntries || newEntries.length === 0)
+        throw new Error("Kayıtlar oluşturulamadı")
 
-      const entryWithRelations = newEntry as LedgerEntryWithRelations
+      const entriesWithRelations = newEntries as LedgerEntryWithRelations[]
 
-      // Optimistic update: Add to local state immediately
-      setData((prev) => [entryWithRelations, ...prev])
-      
-      // Mark as new row for animation
-      setNewRowIds((prev) => new Set([...prev, entryWithRelations.id]))
-      
+      // Optimistic update: Add all new entries to local state
+      setData((prev) => [...entriesWithRelations, ...prev])
+
+      // Mark all as new rows for animation
+      const newIds = entriesWithRelations.map((e) => e.id)
+      setNewRowIds((prev) => new Set([...prev, ...newIds]))
+
       // Remove animation class after animation completes
       setTimeout(() => {
         setNewRowIds((prev) => {
           const next = new Set(prev)
-          next.delete(entryWithRelations.id)
+          newIds.forEach((id) => next.delete(id))
           return next
         })
       }, 500)
 
       // Notify parent component for totals and chart updates
       if (onEntryAdded) {
-        onEntryAdded(entryWithRelations)
+        entriesWithRelations.forEach((entry) => onEntryAdded(entry))
       }
 
-      toast.success("Kayıt başarıyla oluşturuldu")
+      toast.success(
+        entriesWithRelations.length === 1
+          ? "Kayıt başarıyla oluşturuldu"
+          : `${entriesWithRelations.length} kayıt başarıyla oluşturuldu`
+      )
       setIsCreateDialogOpen(false)
       resetForm()
     } catch {
@@ -486,6 +598,7 @@ export function LedgerDataTable({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-32">
               <DropdownMenuItem onClick={() => openEditDialog(row.original)}>
+                <IconPencil className="mr-2 size-4" />
                 Düzenle
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -493,6 +606,7 @@ export function LedgerDataTable({
                 variant="destructive"
                 onClick={() => openDeleteDialog(row.original)}
               >
+                <IconTrash className="mr-2 size-4" />
                 Sil
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -576,12 +690,14 @@ export function LedgerDataTable({
   const allowReceivable = categoryEntryType === "receivable" || categoryEntryType === "both"
   const allowDebt = categoryEntryType === "debt" || categoryEntryType === "both"
 
-  // Extract unique statements from entries for autocomplete suggestions
+  // Use suggestions from all DB entries when provided; otherwise fallback to current (filtered) data
   const statementSuggestions = React.useMemo(() => {
+    if (statementSuggestionsProp && statementSuggestionsProp.length > 0) {
+      return statementSuggestionsProp
+    }
     const statements = data
       .map((entry) => entry.statement)
       .filter((s): s is string => !!s && s.trim().length > 0)
-    // Get unique statements and sort by frequency (most used first)
     const statementCount = new Map<string, number>()
     statements.forEach((s) => {
       statementCount.set(s, (statementCount.get(s) || 0) + 1)
@@ -589,7 +705,7 @@ export function LedgerDataTable({
     return Array.from(statementCount.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([statement]) => statement)
-  }, [data])
+  }, [data, statementSuggestionsProp])
 
   const renderEntryForm = (isEdit: boolean = false) => (
     <div className="space-y-6 py-6">
@@ -935,6 +1051,7 @@ export function LedgerDataTable({
                                 <DropdownMenuItem
                                   onClick={() => openEditDialog(entry)}
                                 >
+                                  <IconPencil className="mr-2 size-4" />
                                   Düzenle
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -942,6 +1059,7 @@ export function LedgerDataTable({
                                   variant="destructive"
                                   onClick={() => openDeleteDialog(entry)}
                                 >
+                                  <IconTrash className="mr-2 size-4" />
                                   Sil
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -980,25 +1098,164 @@ export function LedgerDataTable({
         </TabsContent>
       </Tabs>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+      {/* Create Dialog - Multi-entry */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
+        <DialogContent className="sm:max-w-none w-[85vw] max-w-[1100px] !h-[80vh] flex flex-col" style={{ height: '80vh', width: '85vw', maxWidth: '1100px' }}>
           <DialogHeader>
             <DialogTitle>Yeni Defter Kaydı</DialogTitle>
             <DialogDescription>
-              Yeni bir alacak veya borç kaydı ekleyin.
+              Bir veya birden fazla alacak/borç kaydı ekleyin.
             </DialogDescription>
           </DialogHeader>
-          {renderEntryForm(false)}
+
+          <div className="flex-1 flex flex-col space-y-6 py-4 overflow-hidden min-h-0">
+            {/* Shared Date Picker */}
+            <div className="space-y-3 shrink-0">
+              <Label>Tarih</Label>
+              <DatePicker
+                date={createDate}
+                onDateChange={setCreateDate}
+              />
+            </div>
+
+            {/* Entries Table */}
+            <div className="flex-1 flex flex-col min-h-0 space-y-3">
+              <div className="flex items-center justify-between shrink-0">
+                <Label>Kayıtlar</Label>
+                <Button variant="outline" size="sm" onClick={addRow}>
+                  <IconPlus className="mr-1 size-4" />
+                  Yeni Kayıt
+                </Button>
+              </div>
+
+              <div className="rounded-md border overflow-auto flex-1">
+                <Table style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <colgroup>
+                    <col style={{ width: '27%' }} />
+                    <col style={{ width: '38%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '5%' }} />
+                  </colgroup>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead className="px-3">Hesap</TableHead>
+                      <TableHead className="px-3">Açıklama</TableHead>
+                      <TableHead className="px-3">İşlem</TableHead>
+                      <TableHead className="px-3">Tutar</TableHead>
+                      <TableHead className="px-3"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="[&_tr:hover]:bg-transparent">
+                    {entryRows.map((row) => {
+                      const rowAccount = row.account_id
+                        ? accounts.find((a) => a.id === row.account_id)
+                        : null
+                      const rowEntryType = rowAccount?.categories?.entry_type ?? "both"
+                      const rowAllowReceivable = rowEntryType === "receivable" || rowEntryType === "both"
+                      const rowAllowDebt = rowEntryType === "debt" || rowEntryType === "both"
+
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="px-3 py-2 align-middle" style={{ overflow: 'hidden' }}>
+                            <div
+                              ref={entryRows[entryRows.length - 1]?.id === row.id ? lastRowFirstCellRef : undefined}
+                              style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
+                            >
+                              <AccountCombobox
+                                accounts={accounts}
+                                value={row.account_id}
+                                onValueChange={(v) => handleRowAccountChange(row.id, v)}
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-3 py-2 align-top overflow-hidden">
+                            <div className="w-full">
+                              <StatementAutocomplete
+                                placeholder="Açıklama"
+                                value={row.statement}
+                                onValueChange={(v) => updateRow(row.id, "statement", v)}
+                                suggestions={statementSuggestions}
+                                rows={1}
+                                autoResize
+                                maxRows={4}
+                                className="w-full"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell className="px-3 py-2 align-middle overflow-hidden">
+                            <ToggleGroup
+                              type="single"
+                              variant="outline"
+                              value={row.type}
+                              onValueChange={(v) => {
+                                if (v) updateRow(row.id, "type", v)
+                              }}
+                              className="w-full"
+                            >
+                              <ToggleGroupItem
+                                value="debt"
+                                className="flex-1 text-xs"
+                                disabled={!rowAllowDebt}
+                              >
+                                Borç
+                              </ToggleGroupItem>
+                              <ToggleGroupItem
+                                value="receivable"
+                                className="flex-1 text-xs"
+                                disabled={!rowAllowReceivable}
+                              >
+                                Alacak
+                              </ToggleGroupItem>
+                            </ToggleGroup>
+                          </TableCell>
+                          <TableCell className="px-3 py-2 align-middle overflow-hidden">
+                            <CurrencyInput
+                              value={row.amount}
+                              onValueChange={(v) => updateRow(row.id, "amount", v)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Tab" && !e.shiftKey) {
+                                  e.preventDefault()
+                                  addRow()
+                                }
+                              }}
+                              placeholder="0,00"
+                              className="w-full"
+                            />
+                          </TableCell>
+                          <TableCell className="px-3 py-2 align-middle text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeRow(row.id)}
+                              disabled={entryRows.length === 1}
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                            >
+                              <IconTrash className="size-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsCreateDialogOpen(false)}
+              onClick={() => handleCreateDialogOpenChange(false)}
             >
               İptal
             </Button>
-            <Button onClick={handleCreate} disabled={isSubmitting}>
-              {isSubmitting ? "Oluşturuluyor..." : "Oluştur"}
+            <Button
+              onClick={handleCreate}
+              loading={isSubmitting}
+              disabled={!hasValidRow}
+            >
+              Oluştur
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1021,8 +1278,8 @@ export function LedgerDataTable({
             >
               İptal
             </Button>
-            <Button onClick={handleEdit} disabled={isSubmitting}>
-              {isSubmitting ? "Güncelleniyor..." : "Güncelle"}
+            <Button onClick={handleEdit} loading={isSubmitting}>
+              Güncelle
             </Button>
           </DialogFooter>
         </DialogContent>

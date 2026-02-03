@@ -99,3 +99,33 @@ For consistent form layouts across the app, always use these Tailwind spacing cl
   </div>
 </div>
 ```
+
+## Button Loading States - USE `loading` PROP
+
+For all buttons that trigger async operations (API calls, form submissions, etc.), use the `loading` prop:
+
+```tsx
+import { Button } from "@/components/ui/button"
+
+// ❌ BAD - Replacing button text during loading
+<Button onClick={handleSubmit} disabled={isSubmitting}>
+  {isSubmitting ? "Oluşturuluyor..." : "Oluştur"}
+</Button>
+
+// ❌ BAD - Manual spinner implementation
+<Button onClick={handleSubmit} disabled={isSubmitting}>
+  {isSubmitting && <Spinner />}
+  Oluştur
+</Button>
+
+// ✅ GOOD - Use loading prop
+<Button onClick={handleSubmit} loading={isSubmitting}>
+  Oluştur
+</Button>
+```
+
+The `loading` prop on Button:
+- Shows centered Spinner that replaces the button text visually
+- Keeps children invisible in DOM to preserve button width
+- Automatically disables the button during loading
+- Uses native shadcn Spinner component internally

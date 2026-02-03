@@ -26,6 +26,7 @@ interface AccountComboboxProps {
   onValueChange: (value: string) => void;
   disabled?: boolean;
   categoryFilter?: string;
+  className?: string;
 }
 
 export function AccountCombobox({
@@ -34,6 +35,7 @@ export function AccountCombobox({
   onValueChange,
   disabled,
   categoryFilter,
+  className,
 }: AccountComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -50,10 +52,14 @@ export function AccountCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full min-w-0 justify-between gap-2"
+          className={cn(
+            "w-full justify-between gap-2 focus-visible:ring-0 focus-visible:border-input",
+            className
+          )}
           disabled={disabled}
+          style={{ maxWidth: '100%' }}
         >
-          <span className="min-w-0 truncate text-left">
+          <span className="flex-1 truncate text-left overflow-hidden" style={{ minWidth: 0 }}>
             {selectedAccount
               ? selectedAccount.name
               : "Hesap seçin..."}

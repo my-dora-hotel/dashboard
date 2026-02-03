@@ -73,6 +73,8 @@ interface StatementAutocompleteProps {
   placeholder?: string
   id?: string
   rows?: number
+  autoResize?: boolean
+  maxRows?: number
   className?: string
 }
 
@@ -83,12 +85,37 @@ export function StatementAutocomplete({
   placeholder = "İşlem açıklaması",
   id,
   rows = 4,
+  autoResize = false,
+  maxRows = 5,
   className,
 }: StatementAutocompleteProps) {
   const [open, setOpen] = React.useState(false)
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const listRef = React.useRef<HTMLDivElement>(null)
+
+  // Auto-resize textarea based on content
+  const adjustHeight = React.useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea || !autoResize) return
+
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto'
+    
+    // Calculate line height (approximately 24px per line)
+    const lineHeight = 24
+    const minHeight = rows * lineHeight
+    const maxHeight = maxRows * lineHeight
+    
+    // Set height based on content, constrained by min/max
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight)
+    textarea.style.height = `${newHeight}px`
+  }, [autoResize, rows, maxRows])
+
+  // Adjust height when value changes
+  React.useEffect(() => {
+    adjustHeight()
+  }, [value, adjustHeight])
 
   // Filter suggestions based on current input
   const filteredSuggestions = React.useMemo(() => {
@@ -199,7 +226,8 @@ export function StatementAutocomplete({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           rows={rows}
-          className={cn("resize-none", className)}
+          className={cn("resize-none", autoResize && "overflow-hidden", className)}
+          style={autoResize ? { minHeight: `${rows * 24}px` } : undefined}
         />
       </PopoverTrigger>
       <PopoverContent

@@ -354,8 +354,8 @@ export default function CategoriesPage() {
               >
                 İptal
               </Button>
-              <Button onClick={handleCreate} disabled={isSubmitting}>
-                {isSubmitting ? "Oluşturuluyor..." : "Oluştur"}
+              <Button onClick={handleCreate} loading={isSubmitting}>
+                Oluştur
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -534,8 +534,8 @@ export default function CategoriesPage() {
             >
               İptal
             </Button>
-            <Button onClick={handleEdit} disabled={isSubmitting}>
-              {isSubmitting ? "Güncelleniyor..." : "Güncelle"}
+            <Button onClick={handleEdit} loading={isSubmitting}>
+              Güncelle
             </Button>
           </DialogFooter>
         </DialogContent>
