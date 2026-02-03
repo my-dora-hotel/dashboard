@@ -268,7 +268,7 @@ export default function LedgerPage() {
           </div>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <IconPlus className="size-4" />
-            Yeni Kayıt
+            Kayıt
           </Button>
         </div>
       </div>

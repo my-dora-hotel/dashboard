@@ -8,7 +8,9 @@ import {
   IconArrowUp,
   IconArrowsSort,
   IconDotsVertical,
+  IconPencil,
   IconPlus,
+  IconTrash,
   IconX,
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
@@ -323,7 +325,7 @@ export default function AccountsPage() {
           <DialogTrigger asChild>
             <Button size="sm" onClick={resetForm}>
               <IconPlus className="size-4" />
-              <span className="hidden lg:inline">Yeni Hesap</span>
+              <span className="hidden lg:inline">Hesap</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -498,6 +500,7 @@ export default function AccountsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-32">
                         <DropdownMenuItem onClick={() => openEditDialog(account)}>
+                          <IconPencil className="mr-2 size-4" />
                           Düzenle
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -505,6 +508,7 @@ export default function AccountsPage() {
                           variant="destructive"
                           onClick={() => openDeleteDialog(account)}
                         >
+                          <IconTrash className="mr-2 size-4" />
                           Sil
                         </DropdownMenuItem>
                       </DropdownMenuContent>

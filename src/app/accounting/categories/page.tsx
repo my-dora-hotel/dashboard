@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/client"
 import { Category } from "@/types/database"
 import {
   IconDotsVertical,
+  IconPencil,
   IconPlus,
+  IconTrash,
   IconX,
 } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
@@ -265,7 +267,7 @@ export default function CategoriesPage() {
               onClick={() => setFormData({ id: "", name: "", entry_type: "both", advance_period_weeks: "" })}
             >
               <IconPlus className="size-4" />
-              <span className="hidden lg:inline">Yeni Kategori</span>
+              <span className="hidden lg:inline">Kategori</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -436,6 +438,7 @@ export default function CategoriesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-32">
                         <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                          <IconPencil className="mr-2 size-4" />
                           Düzenle
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
@@ -443,6 +446,7 @@ export default function CategoriesPage() {
                           variant="destructive"
                           onClick={() => openDeleteDialog(category)}
                         >
+                          <IconTrash className="mr-2 size-4" />
                           Sil
                         </DropdownMenuItem>
                       </DropdownMenuContent>

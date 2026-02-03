@@ -6,18 +6,30 @@ import { cn } from "@/lib/utils"
 
 interface TableProps extends React.ComponentProps<"table"> {
   stickyHeader?: boolean
+  stickyFooter?: boolean
   maxHeight?: string
 }
 
-function Table({ className, stickyHeader, maxHeight, ...props }: TableProps) {
+function Table({
+  className,
+  stickyHeader,
+  stickyFooter,
+  maxHeight,
+  ...props
+}: TableProps) {
+  const useScrollContainer = stickyHeader ?? stickyFooter ?? false
   return (
     <div
       data-slot="table-container"
       className={cn(
         "relative w-full",
-        stickyHeader ? "overflow-auto" : "overflow-x-auto"
+        useScrollContainer ? "flex-1 overflow-auto" : "overflow-x-auto"
       )}
-      style={stickyHeader ? { maxHeight: maxHeight || "calc(100vh - 200px)" } : undefined}
+      style={
+        useScrollContainer
+          ? { maxHeight: maxHeight ?? "calc(100vh - 200px)" }
+          : undefined
+      }
     >
       <table
         data-slot="table"
@@ -28,11 +40,20 @@ function Table({ className, stickyHeader, maxHeight, ...props }: TableProps) {
   )
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+interface TableHeaderProps extends React.ComponentProps<"thead"> {
+  sticky?: boolean
+}
+
+function TableHeader({ className, sticky, ...props }: TableHeaderProps) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "[&_tr]:border-b",
+        sticky &&
+          "sticky top-0 z-10 bg-muted border-b shadow-[0_2px_6px_-4px_rgba(0,0,0,0.1)] [&>tr]:bg-muted [&>tr:first-child>th:first-child]:rounded-tl-md [&>tr:first-child>th:last-child]:rounded-tr-md",
+        className
+      )}
       {...props}
     />
   )
@@ -48,12 +69,18 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   )
 }
 
-function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
+interface TableFooterProps extends React.ComponentProps<"tfoot"> {
+  sticky?: boolean
+}
+
+function TableFooter({ className, sticky, ...props }: TableFooterProps) {
   return (
     <tfoot
       data-slot="table-footer"
       className={cn(
         "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0",
+        sticky &&
+          "sticky bottom-0 z-10 bg-muted border-t shadow-[0_-2px_6px_-4px_rgba(0,0,0,0.1)] [&>tr]:bg-muted [&>tr:last-child>td:first-child]:rounded-bl-md [&>tr:last-child>td:last-child]:rounded-br-md",
         className
       )}
       {...props}

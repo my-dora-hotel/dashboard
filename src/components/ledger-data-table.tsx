@@ -54,6 +54,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -279,6 +280,23 @@ export function LedgerDataTable({
     })
   }, [entryRows])
 
+  const createDialogTotals = React.useMemo(() => {
+    let totalReceivable = 0
+    let totalDebt = 0
+    for (const row of entryRows) {
+      if (!row.account_id || !row.category_id || !row.amount) continue
+      const amount = parseFloat(row.amount)
+      if (isNaN(amount) || amount <= 0) continue
+      if (row.type === "receivable") totalReceivable += amount
+      else totalDebt += amount
+    }
+    return {
+      totalReceivable,
+      totalDebt,
+      balance: totalReceivable - totalDebt,
+    }
+  }, [entryRows])
+
   const handleCreate = async () => {
     if (!createDate) {
       toast.error("Lütfen tarih seçin")
@@ -302,6 +320,21 @@ export function LedgerDataTable({
         toast.error("Lütfen geçerli tutarlar girin")
         return
       }
+    }
+
+    const totalReceivable = validRows
+      .filter((r) => r.type === "receivable")
+      .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+    const totalDebt = validRows
+      .filter((r) => r.type === "debt")
+      .reduce((sum, r) => sum + parseFloat(r.amount), 0)
+    const balance = totalReceivable - totalDebt
+
+    if (Math.abs(balance) > 0.001) {
+      toast.error(
+        "Bakiye sıfır olmalıdır. Alacak ve borç toplamları eşit olmalı."
+      )
+      return
     }
 
     setIsSubmitting(true)
@@ -1124,29 +1157,33 @@ export function LedgerDataTable({
                 <Label>Kayıtlar</Label>
                 <Button variant="outline" size="sm" onClick={addRow}>
                   <IconPlus className="mr-1 size-4" />
-                  Yeni Kayıt
+                  Kayıt
                 </Button>
               </div>
 
-              <div className="rounded-md border overflow-auto flex-1">
-                <Table style={{ tableLayout: 'fixed', width: '100%' }}>
-                  <colgroup>
-                    <col style={{ width: '27%' }} />
-                    <col style={{ width: '38%' }} />
-                    <col style={{ width: '15%' }} />
-                    <col style={{ width: '15%' }} />
-                    <col style={{ width: '5%' }} />
-                  </colgroup>
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead className="px-3">Hesap</TableHead>
-                      <TableHead className="px-3">Açıklama</TableHead>
-                      <TableHead className="px-3">İşlem</TableHead>
-                      <TableHead className="px-3">Tutar</TableHead>
-                      <TableHead className="px-3"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="[&_tr:hover]:bg-transparent">
+              <div className="rounded-md border flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <table
+                    className="w-full caption-bottom text-sm"
+                    style={{ tableLayout: 'fixed', width: '100%' }}
+                  >
+                    <colgroup>
+                      <col style={{ width: '27%' }} />
+                      <col style={{ width: '38%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '5%' }} />
+                    </colgroup>
+                    <thead className="sticky top-0 z-10 bg-muted border-b [&_tr]:border-b">
+                      <TableRow>
+                        <TableHead className="px-3">Hesap</TableHead>
+                        <TableHead className="px-3">Açıklama</TableHead>
+                        <TableHead className="px-3">İşlem</TableHead>
+                        <TableHead className="px-3">Tutar</TableHead>
+                        <TableHead className="px-3"></TableHead>
+                      </TableRow>
+                    </thead>
+                    <TableBody className="[&_tr:hover]:bg-transparent">
                     {entryRows.map((row) => {
                       const rowAccount = row.account_id
                         ? accounts.find((a) => a.id === row.account_id)
@@ -1238,7 +1275,38 @@ export function LedgerDataTable({
                       )
                     })}
                   </TableBody>
-                </Table>
+                  </table>
+                </div>
+                <div className="border-t bg-muted shrink-0">
+                  <table
+                    className="w-full caption-bottom text-sm"
+                    style={{ tableLayout: 'fixed', width: '100%' }}
+                  >
+                    <colgroup>
+                      <col style={{ width: '27%' }} />
+                      <col style={{ width: '38%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '5%' }} />
+                    </colgroup>
+                    <tbody>
+                      <TableRow className="hover:bg-transparent border-0">
+                        <TableCell className="px-3 py-2" />
+                        <TableCell className="px-3 py-2" />
+                        <TableCell className="px-3 py-2 text-right font-medium">
+                          Genel Toplam
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-left font-medium">
+                          {formatCurrency(
+                            createDialogTotals.totalReceivable -
+                              createDialogTotals.totalDebt
+                          )}
+                        </TableCell>
+                        <TableCell className="px-3 py-2" />
+                      </TableRow>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

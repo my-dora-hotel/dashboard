@@ -32,6 +32,35 @@ Before making any code changes, always read the PRD (Product Requirements Docume
 - When extending components, add new props (e.g., `stickyHeader` for Table)
 - For features not available in shadcn, search shadcn docs/patterns first
 
+### Component Structure - ALWAYS FOLLOW NATIVE PATTERNS
+
+**shadcn components have specific parent-child relationships. Always follow the native structure.**
+
+- **Study the component source** before using complex components (Sidebar, Table, Form, etc.)
+- **Never nest components incorrectly** (e.g., putting `SidebarGroupLabel` inside `SidebarGroupContent`)
+- **Never use custom flex/grid layouts** that break the component's intended structure
+- If a layout doesn't work naturally with shadcn structure, you're doing it wrong — find the correct pattern
+
+```tsx
+// ❌ BAD - Breaking native Sidebar structure
+<SidebarGroup>
+  <SidebarGroupContent className="flex flex-row justify-between">
+    <SidebarGroupLabel>Label</SidebarGroupLabel>
+    <SomeControl />
+  </SidebarGroupContent>
+</SidebarGroup>
+
+// ✅ GOOD - Following native Sidebar structure
+<SidebarGroup>
+  <SidebarGroupLabel>Label</SidebarGroupLabel>
+  <SidebarGroupContent>
+    <SomeControl />
+  </SidebarGroupContent>
+</SidebarGroup>
+```
+
+This rule applies to ALL shadcn components: Sidebar, Table, Form, Dialog, Sheet, etc.
+
 ## Examples
 
 ```typescript
@@ -129,3 +158,37 @@ The `loading` prop on Button:
 - Keeps children invisible in DOM to preserve button width
 - Automatically disables the button during loading
 - Uses native shadcn Spinner component internally
+
+## Dropdowns / Predefined Options - USE ICON + TEXT
+
+When presenting predefined choices to the user (e.g. `DropdownMenuItem`, `SelectItem`, command items, or any menu with fixed options), **always use icon + text** for each option. Apply this pattern everywhere in the project.
+
+- Use a leading icon before the label (e.g. `IconPencil` for edit, `IconTrash` for delete).
+- Icon: `className="mr-2 size-4"` so text aligns consistently.
+- Keeps the UI consistent and scannable across Ledger, Categories, Accounts, and any future screens.
+
+### Example (DropdownMenu)
+
+```tsx
+// ❌ BAD - Text only
+<DropdownMenuItem onClick={onEdit}>
+  Düzenle
+</DropdownMenuItem>
+<DropdownMenuItem variant="destructive" onClick={onDelete}>
+  Sil
+</DropdownMenuItem>
+```
+
+```tsx
+// ✅ GOOD - Icon + text
+<DropdownMenuItem onClick={onEdit}>
+  <IconPencil className="mr-2 size-4" />
+  Düzenle
+</DropdownMenuItem>
+<DropdownMenuItem variant="destructive" onClick={onDelete}>
+  <IconTrash className="mr-2 size-4" />
+  Sil
+</DropdownMenuItem>
+```
+
+Use the same pattern for other predefined-option UIs (e.g. Select items, Command lists) when each option has a clear semantic action or type.

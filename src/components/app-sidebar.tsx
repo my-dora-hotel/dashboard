@@ -1,26 +1,29 @@
 "use client"
 
 import * as React from "react"
+import { useTheme } from "next-themes"
 import {
   IconBook,
   IconBuildingBank,
   IconCategory,
-  IconSettings,
   IconUsers,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 const navMain = [
   {
@@ -40,15 +43,15 @@ const navMain = [
   },
 ]
 
-const navSecondary = [
-  {
-    title: "Ayarlar",
-    url: "#",
-    icon: IconSettings,
-  },
-]
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [mounted, setMounted] = React.useState(false)
+  const { theme, setTheme } = useTheme()
+
+  // Prevent hydration mismatch by only rendering theme toggle after mount
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -68,7 +71,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMain} label="Muhasebe" />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupLabel>Tema</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <ToggleGroup
+              type="single"
+              value={mounted ? theme ?? "system" : undefined}
+              onValueChange={(v) => v && setTheme(v)}
+              className="w-full group-data-[collapsible=icon]:hidden"
+              size="xs"
+              variant="outline"
+            >
+              <ToggleGroupItem value="dark" className="flex-1">
+                Dark
+              </ToggleGroupItem>
+              <ToggleGroupItem value="light" className="flex-1">
+                Light
+              </ToggleGroupItem>
+              <ToggleGroupItem value="system" className="flex-1">
+                System
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
