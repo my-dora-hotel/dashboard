@@ -88,10 +88,13 @@ import { DatePicker } from "@/components/date-picker"
 import { CategoryCombobox } from "@/components/category-combobox"
 import { AccountCombobox } from "@/components/account-combobox"
 import { createClient } from "@/lib/supabase/client"
+import { useDraftAutoSave } from "@/hooks/use-draft-auto-save"
 import {
   Category,
   AccountWithCategory,
   LedgerEntryWithRelations,
+  LedgerDraft,
+  LedgerDraftEntry,
 } from "@/types/database"
 
 interface LedgerDataTableProps {
@@ -105,6 +108,10 @@ interface LedgerDataTableProps {
   onEntryDeleted?: (entryId: string) => void
   isCreateDialogOpen?: boolean
   setIsCreateDialogOpen?: (open: boolean) => void
+  /** When set, the create dialog opens pre-filled with this draft's data */
+  resumeDraft?: LedgerDraft | null
+  /** Called when a draft is created or deleted so parent can refresh list */
+  onDraftChange?: () => void
 }
 
 interface EntryFormData {
@@ -161,6 +168,8 @@ export function LedgerDataTable({
   onEntryDeleted,
   isCreateDialogOpen: externalCreateDialogOpen,
   setIsCreateDialogOpen: externalSetCreateDialogOpen,
+  resumeDraft: resumeDraftProp,
+  onDraftChange,
 }: LedgerDataTableProps) {
   const [data, setData] = React.useState(initialData)
   const [newRowIds, setNewRowIds] = React.useState<Set<string>>(new Set())
@@ -186,6 +195,34 @@ export function LedgerDataTable({
   // Multi-entry creation state
   const [createDate, setCreateDate] = React.useState<Date | undefined>(new Date())
   const [entryRows, setEntryRows] = React.useState<EntryRowData[]>([createEmptyRow()])
+  
+  // Row selection state for balance preview
+  const [selectedRowId, setSelectedRowId] = React.useState<string | null>(null)
+  const [currentAccountBalance, setCurrentAccountBalance] = React.useState<number | null>(null)
+  
+  // Cache for account balances (account_id -> balance) - cleared when dialog closes
+  const balanceCacheRef = React.useRef<Map<string, number>>(new Map())
+
+  // Draft auto-save
+  const { draftId, setDraftId, deleteDraft, flushSave } = useDraftAutoSave({
+    entryRows: entryRows as LedgerDraftEntry[],
+    createDate,
+    isOpen: isCreateDialogOpen,
+  })
+
+  // Load draft data synchronously when resumeDraft prop changes or dialog opens
+  React.useEffect(() => {
+    if (!resumeDraftProp || !isCreateDialogOpen) return
+    const rows = Array.isArray(resumeDraftProp.entries)
+      ? resumeDraftProp.entries
+      : []
+    const date = resumeDraftProp.date
+      ? new Date(resumeDraftProp.date)
+      : undefined
+    setEntryRows(rows as EntryRowData[])
+    setCreateDate(date)
+    setDraftId(resumeDraftProp.id)
+  }, [resumeDraftProp, isCreateDialogOpen, setDraftId])
 
   const supabase = createClient()
 
@@ -216,10 +253,36 @@ export function LedgerDataTable({
     // Reset multi-entry state
     setCreateDate(new Date())
     setEntryRows([createEmptyRow()])
+    // Reset selection state
+    setSelectedRowId(null)
+    setCurrentAccountBalance(null)
+    // Clear balance cache when form resets
+    balanceCacheRef.current.clear()
   }
 
+  // Reset form when dialog opens (works for both external state and onOpenChange)
+  const prevCreateDialogOpenRef = React.useRef(isCreateDialogOpen)
+  React.useEffect(() => {
+    const wasOpen = prevCreateDialogOpenRef.current
+    prevCreateDialogOpenRef.current = isCreateDialogOpen
+
+    if (isCreateDialogOpen && !wasOpen) {
+      // Dialog just opened: reset form unless resuming a draft
+      if (!resumeDraftProp) {
+        resetForm()
+      }
+    }
+  }, [isCreateDialogOpen, resumeDraftProp])
+
   const handleCreateDialogOpenChange = (open: boolean) => {
-    if (!open) resetForm()
+    if (!open) {
+      // Save draft BEFORE closing (flushSave reads from refs).
+      flushSave().then(() => {
+        onDraftChange?.()
+      })
+      // Clear balance cache when dialog closes
+      balanceCacheRef.current.clear()
+    }
     setIsCreateDialogOpen(open)
   }
 
@@ -245,6 +308,8 @@ export function LedgerDataTable({
             : row
         )
       )
+      // Set selected row when account changes
+      setSelectedRowId(rowId)
     }
   }
 
@@ -270,6 +335,11 @@ export function LedgerDataTable({
       if (prev.length === 1) return prev // Keep at least one row
       return prev.filter((row) => row.id !== rowId)
     })
+    // Clear selection if removed row was selected
+    if (selectedRowId === rowId) {
+      setSelectedRowId(null)
+      setCurrentAccountBalance(null)
+    }
   }
 
   const hasValidRow = React.useMemo(() => {
@@ -296,6 +366,80 @@ export function LedgerDataTable({
       balance: totalReceivable - totalDebt,
     }
   }, [entryRows])
+
+  // Get selected row and account
+  const selectedRow = React.useMemo(() => {
+    return entryRows.find((row) => row.id === selectedRowId) || null
+  }, [entryRows, selectedRowId])
+
+  const selectedRowAccount = React.useMemo(() => {
+    if (!selectedRow?.account_id) return null
+    return accounts.find((a) => a.id === selectedRow.account_id) || null
+  }, [selectedRow, accounts])
+
+  // Fetch account balance from DB with caching
+  React.useEffect(() => {
+    if (!selectedRow?.account_id || !isCreateDialogOpen) {
+      setCurrentAccountBalance(null)
+      return
+    }
+
+    const accountId = selectedRow.account_id
+
+    // Check cache first
+    const cachedBalance = balanceCacheRef.current.get(accountId)
+    if (cachedBalance !== undefined) {
+      setCurrentAccountBalance(cachedBalance)
+      return
+    }
+
+    // Fetch from DB if not in cache
+    const fetchBalance = async () => {
+      const { data, error } = await supabase
+        .from("ledger_entries")
+        .select("receivable, debt")
+        .eq("account_id", accountId)
+
+      if (error) {
+        console.error("Error fetching account balance:", error)
+        setCurrentAccountBalance(null)
+        return
+      }
+
+      const balance = data && data.length > 0
+        ? data.reduce((sum, entry) => {
+            return sum + (entry.receivable || 0) - (entry.debt || 0)
+          }, 0)
+        : 0
+
+      // Cache the result
+      balanceCacheRef.current.set(accountId, balance)
+      setCurrentAccountBalance(balance)
+    }
+
+    fetchBalance()
+  }, [selectedRow?.account_id, isCreateDialogOpen, supabase])
+
+  // Calculate pending changes for selected account
+  const pendingChangesForSelectedAccount = React.useMemo(() => {
+    if (!selectedRow?.account_id) return 0
+
+    let change = 0
+    for (const row of entryRows) {
+      if (row.account_id !== selectedRow.account_id) continue
+      if (!row.amount) continue
+      const amount = parseFloat(row.amount)
+      if (isNaN(amount) || amount <= 0) continue
+
+      if (row.type === "receivable") {
+        change += amount
+      } else if (row.type === "debt") {
+        change -= amount
+      }
+    }
+
+    return change
+  }, [entryRows, selectedRow?.account_id])
 
   const handleCreate = async () => {
     if (!createDate) {
@@ -383,13 +527,17 @@ export function LedgerDataTable({
         entriesWithRelations.forEach((entry) => onEntryAdded(entry))
       }
 
+      // Delete draft on successful creation
+      await deleteDraft()
+      onDraftChange?.()
+
       toast.success(
         entriesWithRelations.length === 1
           ? "Kayıt başarıyla oluşturuldu"
           : `${entriesWithRelations.length} kayıt başarıyla oluşturuldu`
       )
       setIsCreateDialogOpen(false)
-      resetForm()
+      // Form will be reset when dialog opens next time
     } catch {
       toast.error("Kayıt oluşturulurken bir hata oluştu")
       // On error, refresh to sync with server
@@ -755,6 +903,7 @@ export function LedgerDataTable({
           accounts={accounts}
           value={formData.account_id}
           onValueChange={handleAccountChange}
+          portal={false}
         />
         <p className="text-xs text-muted-foreground">
           Kategori hesap seçimine göre otomatik belirlenir
@@ -1152,7 +1301,16 @@ export function LedgerDataTable({
             </div>
 
             {/* Entries Table */}
-            <div className="flex-1 flex flex-col min-h-0 space-y-3">
+            <div 
+              className="flex-1 flex flex-col min-h-0 space-y-3"
+              onClick={(e) => {
+                // Clear selection if clicking outside the table
+                const target = e.target as HTMLElement
+                if (!target.closest('.rounded-md.border')) {
+                  setSelectedRowId(null)
+                }
+              }}
+            >
               <div className="flex items-center justify-between shrink-0">
                 <Label>Kayıtlar</Label>
                 <Button variant="outline" size="sm" onClick={addRow}>
@@ -1162,7 +1320,43 @@ export function LedgerDataTable({
               </div>
 
               <div className="rounded-md border flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 min-h-0 overflow-auto">
+                <div 
+                  className="flex-1 min-h-0 overflow-auto outline-none focus:outline-none"
+                  onKeyDown={(e) => {
+                    // Navigate rows with arrow keys
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const currentIndex = entryRows.findIndex((row) => row.id === selectedRowId)
+                      
+                      if (e.key === 'ArrowUp') {
+                        // Move to previous row
+                        if (currentIndex > 0) {
+                          setSelectedRowId(entryRows[currentIndex - 1].id)
+                        } else if (currentIndex === -1 && entryRows.length > 0) {
+                          // If no row selected, select last row
+                          setSelectedRowId(entryRows[entryRows.length - 1].id)
+                        }
+                      } else if (e.key === 'ArrowDown') {
+                        // Move to next row
+                        if (currentIndex >= 0 && currentIndex < entryRows.length - 1) {
+                          setSelectedRowId(entryRows[currentIndex + 1].id)
+                        } else if (currentIndex === -1 && entryRows.length > 0) {
+                          // If no row selected, select first row
+                          setSelectedRowId(entryRows[0].id)
+                        }
+                      }
+                    }
+                  }}
+                  onClick={(e) => {
+                    // If clicking on a cell (td), selection is handled by TableRow onClick
+                    // If clicking on empty space (not on td), clear selection
+                    const target = e.target as HTMLElement
+                    if (!target.closest('td')) {
+                      setSelectedRowId(null)
+                    }
+                  }}
+                  tabIndex={0}
+                >
                   <table
                     className="w-full caption-bottom text-sm"
                     style={{ tableLayout: 'fixed', width: '100%' }}
@@ -1183,8 +1377,8 @@ export function LedgerDataTable({
                         <TableHead className="px-3"></TableHead>
                       </TableRow>
                     </thead>
-                    <TableBody className="[&_tr:hover]:bg-transparent">
-                    {entryRows.map((row) => {
+                    <TableBody>
+                    {entryRows.map((row, rowIndex) => {
                       const rowAccount = row.account_id
                         ? accounts.find((a) => a.id === row.account_id)
                         : null
@@ -1192,17 +1386,47 @@ export function LedgerDataTable({
                       const rowAllowReceivable = rowEntryType === "receivable" || rowEntryType === "both"
                       const rowAllowDebt = rowEntryType === "debt" || rowEntryType === "both"
 
+                      const isSelected = selectedRowId === row.id
+                      const isLastRow = rowIndex === entryRows.length - 1
                       return (
-                        <TableRow key={row.id}>
+                        <TableRow 
+                          key={row.id}
+                          data-state={isSelected ? "selected" : undefined}
+                          onClick={(e) => {
+                            const target = e.target as HTMLElement
+                            // If clicking on interactive elements, don't select
+                            if (
+                              target.closest('button') ||
+                              target.closest('input') ||
+                              target.closest('textarea') ||
+                              target.closest('select') ||
+                              target.closest('[role="combobox"]') ||
+                              target.closest('[role="textbox"]') ||
+                              target.closest('a') ||
+                              target.closest('label') ||
+                              target.closest('[contenteditable]')
+                            ) {
+                              return
+                            }
+                            // If clicking on a cell (td), select the row
+                            if (target.closest('td')) {
+                              setSelectedRowId(row.id)
+                              e.stopPropagation()
+                            }
+                          }}
+                          className="cursor-pointer hover:bg-transparent"
+                        >
                           <TableCell className="px-3 py-2 align-middle" style={{ overflow: 'hidden' }}>
                             <div
                               ref={entryRows[entryRows.length - 1]?.id === row.id ? lastRowFirstCellRef : undefined}
+                              data-row-index={rowIndex}
                               style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
                             >
                               <AccountCombobox
                                 accounts={accounts}
                                 value={row.account_id}
                                 onValueChange={(v) => handleRowAccountChange(row.id, v)}
+                                portal={false}
                               />
                             </div>
                           </TableCell>
@@ -1232,14 +1456,14 @@ export function LedgerDataTable({
                             >
                               <ToggleGroupItem
                                 value="debt"
-                                className="flex-1 text-xs"
+                                className="flex-1 text-xs data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
                                 disabled={!rowAllowDebt}
                               >
                                 Borç
                               </ToggleGroupItem>
                               <ToggleGroupItem
                                 value="receivable"
-                                className="flex-1 text-xs"
+                                className="flex-1 text-xs data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
                                 disabled={!rowAllowReceivable}
                               >
                                 Alacak
@@ -1253,7 +1477,16 @@ export function LedgerDataTable({
                               onKeyDown={(e) => {
                                 if (e.key === "Tab" && !e.shiftKey) {
                                   e.preventDefault()
-                                  addRow()
+                                  if (isLastRow) {
+                                    // Last row, last column: add new row
+                                    addRow()
+                                  } else {
+                                    // Not last row: focus next row's first column (Account combobox)
+                                    const nextRowIndex = rowIndex + 1
+                                    const nextRowFirstCell = document.querySelector(`[data-row-index="${nextRowIndex}"]`)
+                                    const nextRowComboboxTrigger = nextRowFirstCell?.querySelector<HTMLButtonElement>('button[role="combobox"]')
+                                    nextRowComboboxTrigger?.focus()
+                                  }
                                 }
                               }}
                               placeholder="0,00"
@@ -1306,6 +1539,64 @@ export function LedgerDataTable({
                       </TableRow>
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Balance Preview Container */}
+            <div className="mt-4 flex flex-col space-y-3">
+              <div className="shrink-0">
+                <Label>Bakiye Bilgisi</Label>
+              </div>
+              <div className="px-6 py-5 rounded-md border bg-muted/50">
+                <div className="w-full flex items-start justify-between gap-8">
+                  {/* Left: Hesap */}
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm font-medium text-muted-foreground text-left">Hesap</div>
+                    <div className="text-sm font-medium text-left">
+                      {selectedRowAccount?.name || (
+                        <span className="text-muted-foreground">Bir hesap seçin</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Right: Güncel Bakiye, Değişim, Yeni Bakiye */}
+                  <div className="flex items-start gap-12 flex-shrink-0">
+                    <div className="flex flex-col gap-2 min-w-[140px]">
+                      <div className="text-sm font-medium text-muted-foreground text-left">Güncel Bakiye</div>
+                      <div className="text-sm font-medium text-left">
+                        {selectedRowAccount && currentAccountBalance !== null ? (
+                          formatCurrency(currentAccountBalance)
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[120px]">
+                      <div className="text-sm font-medium text-muted-foreground text-left">Değişim</div>
+                      <div className="text-left">
+                        {selectedRowAccount && currentAccountBalance !== null ? (
+                          <Badge 
+                            variant={pendingChangesForSelectedAccount >= 0 ? "default" : "destructive"}
+                            className={pendingChangesForSelectedAccount >= 0 ? "bg-green-500 text-white hover:bg-green-600" : ""}
+                          >
+                            {pendingChangesForSelectedAccount >= 0 ? "+" : ""}{formatCurrency(pendingChangesForSelectedAccount)}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[140px]">
+                      <div className="text-sm font-medium text-muted-foreground text-left">Yeni Bakiye</div>
+                      <div className="text-sm font-semibold text-left">
+                        {selectedRowAccount && currentAccountBalance !== null ? (
+                          formatCurrency(currentAccountBalance + pendingChangesForSelectedAccount)
+                        ) : (
+                          <span className="text-muted-foreground font-normal">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

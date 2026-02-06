@@ -2,12 +2,7 @@
 
 import * as React from "react"
 import { useTheme } from "next-themes"
-import {
-  IconBook,
-  IconBuildingBank,
-  IconCategory,
-  IconUsers,
-} from "@tabler/icons-react"
+import { IconBuildingBank } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -24,24 +19,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-
-const navMain = [
-  {
-    title: "Kayıtlar",
-    url: "/accounting/ledger",
-    icon: IconBook,
-  },
-  {
-    title: "Kategoriler",
-    url: "/accounting/categories",
-    icon: IconCategory,
-  },
-  {
-    title: "Hesaplar",
-    url: "/accounting/accounts",
-    icon: IconUsers,
-  },
-]
+import { getNavigationItems } from "@/config/routes"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [mounted, setMounted] = React.useState(false)
@@ -51,6 +29,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Get navigation items from route config
+  const navItems = getNavigationItems("Muhasebe").map((route) => ({
+    title: route.title,
+    url: route.path,
+    icon: route.icon,
+  }))
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -70,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} label="Muhasebe" />
+        <NavMain items={navItems} label="Muhasebe" />
         <SidebarGroup className="mt-auto">
           <SidebarGroupLabel>Tema</SidebarGroupLabel>
           <SidebarGroupContent>

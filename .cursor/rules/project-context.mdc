@@ -27,6 +27,7 @@ Before making any code changes, always read the PRD (Product Requirements Docume
 
 - **NEVER develop custom UI components** - Only use shadcn/ui native components
 - **NEVER customize component internals** - Use components as-is from shadcn
+- **NEVER write wrapper components** - Always use native components directly. If a wrapper seems necessary, you're likely using the component incorrectly. Find the correct native pattern instead.
 - Always check shadcn docs before implementing any UI feature
 - Use proper component props instead of CSS hacks
 - When extending components, add new props (e.g., `stickyHeader` for Table)
