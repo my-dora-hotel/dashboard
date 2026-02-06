@@ -85,8 +85,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { DatePicker } from "@/components/date-picker"
-import { CategoryCombobox } from "@/components/category-combobox"
-import { AccountCombobox } from "@/components/account-combobox"
+import { ComboboxSelect } from "@/components/combobox-select"
 import { createClient } from "@/lib/supabase/client"
 import { useDraftAutoSave } from "@/hooks/use-draft-auto-save"
 import {
@@ -899,10 +898,12 @@ export function LedgerDataTable({
       </div>
       <div className="space-y-3">
         <Label>Hesap</Label>
-        <AccountCombobox
-          accounts={accounts}
+        <ComboboxSelect
+          items={accounts.map((a) => ({ label: a.name, value: a.id }))}
           value={formData.account_id}
           onValueChange={handleAccountChange}
+          placeholder="Hesap seçin..."
+          emptyMessage="Hesap bulunamadı."
           portal={false}
         />
         <p className="text-xs text-muted-foreground">
@@ -1422,10 +1423,12 @@ export function LedgerDataTable({
                               data-row-index={rowIndex}
                               style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}
                             >
-                              <AccountCombobox
-                                accounts={accounts}
+                              <ComboboxSelect
+                                items={accounts.map((a) => ({ label: a.name, value: a.id }))}
                                 value={row.account_id}
                                 onValueChange={(v) => handleRowAccountChange(row.id, v)}
+                                placeholder="Hesap seçin..."
+                                emptyMessage="Hesap bulunamadı."
                                 portal={false}
                               />
                             </div>

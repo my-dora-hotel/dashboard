@@ -22,8 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { CategoryCombobox } from "@/components/category-combobox"
-import { AccountCombobox } from "@/components/account-combobox"
+import { ComboboxSelect } from "@/components/combobox-select"
 import { DateRangeFilter } from "@/components/date-range-filter"
 import { LedgerDataTable } from "@/components/ledger-data-table"
 import { LedgerChart } from "@/components/ledger-chart"
@@ -304,22 +303,26 @@ export default function LedgerPage() {
               }}
             />
             <div className="w-[200px]">
-              <CategoryCombobox
-                categories={categories}
+              <ComboboxSelect
+                items={categories.map((c) => ({ label: c.name, value: c.id }))}
                 value={filterCategoryId}
                 onValueChange={setFilterCategoryId}
                 placeholder="Tüm Ana Hesaplar"
+                emptyMessage="Kategori bulunamadı."
                 includeAllOption
               />
             </div>
             <div className="w-[200px]">
-              <AccountCombobox
-                accounts={accounts}
+              <ComboboxSelect
+                items={(filterCategoryId
+                  ? accounts.filter((a) => a.category_id === filterCategoryId)
+                  : accounts
+                ).map((a) => ({ label: a.name, value: a.id }))}
                 value={filterAccountId}
                 onValueChange={setFilterAccountId}
                 placeholder="Tüm Alt Hesaplar"
+                emptyMessage="Hesap bulunamadı."
                 includeAllOption
-                categoryFilter={filterCategoryId || undefined}
               />
             </div>
             {(filterCategoryId || filterAccountId) && (

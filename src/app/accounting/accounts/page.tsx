@@ -51,7 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { CategoryCombobox } from "@/components/category-combobox"
+import { ComboboxSelect } from "@/components/combobox-select"
 import { normalizeForSearch } from "@/lib/search-utils"
 import { toast } from "sonner"
 
@@ -317,11 +317,12 @@ export default function AccountsPage() {
             className="w-[250px]"
           />
           <div className="w-[200px]">
-            <CategoryCombobox
-              categories={categories}
+            <ComboboxSelect
+              items={categories.map((c) => ({ label: c.name, value: c.id }))}
               value={filterCategoryId}
               onValueChange={setFilterCategoryId}
               placeholder="Tüm Ana Hesaplar"
+              emptyMessage="Kategori bulunamadı."
               includeAllOption
             />
           </div>
@@ -349,12 +350,14 @@ export default function AccountsPage() {
             <div className="space-y-6 py-4">
               <div className="space-y-3">
                 <Label>Kategori</Label>
-                <CategoryCombobox
-                  categories={categories}
+                <ComboboxSelect
+                  items={categories.map((c) => ({ label: c.name, value: c.id }))}
                   value={formData.category_id}
                   onValueChange={(value) =>
                     setFormData({ ...formData, category_id: value })
                   }
+                  placeholder="Kategori seçin..."
+                  emptyMessage="Kategori bulunamadı."
                   portal={false}
                 />
               </div>
@@ -543,12 +546,14 @@ export default function AccountsPage() {
           <div className="space-y-6 py-4">
             <div className="space-y-3">
               <Label>Kategori</Label>
-              <CategoryCombobox
-                categories={categories}
+              <ComboboxSelect
+                items={categories.map((c) => ({ label: c.name, value: c.id }))}
                 value={formData.category_id}
                 onValueChange={(value) =>
                   setFormData({ ...formData, category_id: value })
                 }
+                placeholder="Kategori seçin..."
+                emptyMessage="Kategori bulunamadı."
                 portal={false}
               />
             </div>

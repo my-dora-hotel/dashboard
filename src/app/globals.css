@@ -127,3 +127,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide scrollbar in combobox dropdowns (matches shadcn docs behavior) */
+[data-slot="combobox-list"] {
+  scrollbar-width: none;
+}
+[data-slot="combobox-list"]::-webkit-scrollbar {
+  display: none;
+}
