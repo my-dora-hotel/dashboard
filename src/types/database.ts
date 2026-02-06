@@ -97,6 +97,30 @@ export interface Database {
           }
         ];
       };
+      ledger_drafts: {
+        Row: {
+          id: string;
+          date: string | null;
+          entries: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          date?: string | null;
+          entries?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          date?: string | null;
+          entries?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       ledger_entries: {
         Row: {
           id: string;
@@ -184,4 +208,23 @@ export type AccountWithCategory = Account & {
 export type LedgerEntryWithRelations = LedgerEntry & {
   categories: Category;
   accounts: Account;
+};
+
+// Draft entry shape stored in JSONB
+export interface LedgerDraftEntry {
+  id: string;
+  account_id: string;
+  category_id: string;
+  statement: string;
+  type: "receivable" | "debt";
+  amount: string;
+}
+
+export type LedgerDraftRow = Database["public"]["Tables"]["ledger_drafts"]["Row"];
+export type LedgerDraftInsert = Database["public"]["Tables"]["ledger_drafts"]["Insert"];
+export type LedgerDraftUpdate = Database["public"]["Tables"]["ledger_drafts"]["Update"];
+
+// Typed draft with parsed entries
+export type LedgerDraft = Omit<LedgerDraftRow, "entries"> & {
+  entries: LedgerDraftEntry[];
 };

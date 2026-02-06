@@ -3,41 +3,12 @@
 import { usePathname } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-
-const pageTitles: Record<string, string> = {
-  "/accounting": "Genel Bakış",
-  "/accounting/ledger": "Kayıtlar",
-  "/accounting/categories": "Kategoriler",
-  "/accounting/accounts": "Hesaplar",
-  "/dashboard": "Dashboard",
-}
-
-// Module display names by route prefix
-const moduleNames: Record<string, string> = {
-  "/accounting": "Muhasebe",
-  "/dashboard": "Dashboard",
-}
-
-function getModuleName(pathname: string): string | null {
-  // Find longest matching prefix
-  const matchingPrefixes = Object.keys(moduleNames).filter((prefix) =>
-    pathname.startsWith(prefix)
-  )
-  
-  if (matchingPrefixes.length === 0) return null
-  
-  // Pick longest match (most specific)
-  const bestMatch = matchingPrefixes.reduce((a, b) =>
-    a.length > b.length ? a : b
-  )
-  
-  return moduleNames[bestMatch]
-}
+import { getPageTitle, getModuleByPath } from "@/config/routes"
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const title = pageTitles[pathname] || "My Dora"
-  const moduleName = getModuleName(pathname)
+  const title = getPageTitle(pathname)
+  const moduleName = getModuleByPath(pathname)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

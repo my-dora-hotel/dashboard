@@ -321,7 +321,7 @@ export default function AccountsPage() {
               categories={categories}
               value={filterCategoryId}
               onValueChange={setFilterCategoryId}
-              placeholder="Tüm kategoriler"
+              placeholder="Tüm Ana Hesaplar"
               includeAllOption
             />
           </div>
@@ -355,6 +355,7 @@ export default function AccountsPage() {
                   onValueChange={(value) =>
                     setFormData({ ...formData, category_id: value })
                   }
+                  portal={false}
                 />
               </div>
               <div className="space-y-3">
@@ -548,6 +549,7 @@ export default function AccountsPage() {
                 onValueChange={(value) =>
                   setFormData({ ...formData, category_id: value })
                 }
+                portal={false}
               />
             </div>
             <div className="space-y-3">

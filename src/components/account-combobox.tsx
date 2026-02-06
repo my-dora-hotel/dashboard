@@ -1,24 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { normalizeForSearch } from "@/lib/search-utils"
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { AccountWithCategory } from "@/types/database";
+
+interface AccountItem {
+  label: string;
+  value: string;
+}
 
 interface AccountComboboxProps {
   accounts: AccountWithCategory[];
@@ -27,6 +28,10 @@ interface AccountComboboxProps {
   disabled?: boolean;
   categoryFilter?: string;
   className?: string;
+  placeholder?: string;
+  includeAllOption?: boolean;
+  /** Set to false when used inside a Dialog to avoid inert/portal issues */
+  portal?: boolean;
 }
 
 export function AccountCombobox({
@@ -36,76 +41,75 @@ export function AccountCombobox({
   disabled,
   categoryFilter,
   className,
+  placeholder = "Hesap seçin...",
+  includeAllOption = false,
+  portal,
 }: AccountComboboxProps) {
-  const [open, setOpen] = React.useState(false);
-
   const filteredAccounts = categoryFilter
     ? accounts.filter((acc) => acc.category_id === categoryFilter)
-    : accounts;
+    : accounts
 
-  const selectedAccount = accounts.find((acc) => acc.id === value);
+  const items = React.useMemo<AccountItem[]>(() => {
+    const accountItems: AccountItem[] = filteredAccounts.map((a) => ({
+      label: a.name,
+      value: a.id,
+    }))
+
+    if (includeAllOption) {
+      return [{ label: placeholder, value: "" }, ...accountItems]
+    }
+
+    return accountItems
+  }, [filteredAccounts, includeAllOption, placeholder])
+
+  const selectedItem = React.useMemo(
+    () => items.find((item) => item.value === value),
+    [items, value]
+  )
+
+  const handleValueChange = (
+    selected: AccountItem | AccountItem[] | null
+  ) => {
+    if (selected === null) {
+      onValueChange("")
+      return
+    }
+    const item = Array.isArray(selected) ? selected[0] : selected
+    onValueChange(item?.value ?? "")
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal={true}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn(
-            "w-full justify-between gap-2 focus-visible:ring-0 focus-visible:border-input",
-            className
+    <Combobox
+      items={items}
+      value={selectedItem ?? null}
+      onValueChange={handleValueChange}
+      disabled={disabled}
+      itemToStringValue={(item) => item.label}
+    >
+      <ComboboxTrigger
+        render={
+          <Button
+            variant="outline"
+            className={cn("w-full justify-between font-normal overflow-hidden focus-visible:ring-0 focus-visible:ring-offset-0", className)}
+          >
+            <span className="truncate">
+              <ComboboxValue placeholder={placeholder} />
+            </span>
+            <ChevronDownIcon className="text-muted-foreground shrink-0 size-4" />
+          </Button>
+        }
+      />
+      <ComboboxContent portal={portal}>
+        <ComboboxInput showTrigger={false} placeholder="Ara..." />
+        <ComboboxEmpty>Hesap bulunamadı.</ComboboxEmpty>
+        <ComboboxList>
+          {(item) => (
+            <ComboboxItem key={item.value} value={item}>
+              {item.label}
+            </ComboboxItem>
           )}
-          disabled={disabled}
-          style={{ maxWidth: '100%' }}
-        >
-          <span className="flex-1 truncate text-left overflow-hidden" style={{ minWidth: 0 }}>
-            {selectedAccount
-              ? selectedAccount.name
-              : "Hesap seçin..."}
-          </span>
-          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command
-          filter={(value, search) =>
-            normalizeForSearch(value).includes(normalizeForSearch(search))
-              ? 1
-              : 0
-          }
-        >
-          <CommandInput placeholder="Hesap ara..." />
-          <CommandList>
-            <CommandEmpty>Hesap bulunamadı.</CommandEmpty>
-            <CommandGroup>
-              {filteredAccounts.map((account) => (
-                <CommandItem
-                  key={account.id}
-                  value={`${account.name} ${account.categories.name}`}
-                  onSelect={() => {
-                    onValueChange(account.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === account.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col">
-                    <span>{account.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {account.categories.name}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
 }

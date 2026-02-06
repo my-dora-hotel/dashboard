@@ -166,3 +166,30 @@ ON ledger_entries FOR ALL
 TO authenticated
 USING (true)
 WITH CHECK (true);
+
+-- ============================================
+-- LEDGER DRAFTS TABLE (Auto-saved draft entries)
+-- ============================================
+CREATE TABLE IF NOT EXISTS ledger_drafts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE,
+    entries JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS for ledger_drafts
+ALTER TABLE ledger_drafts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated users full access to ledger_drafts"
+ON ledger_drafts FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+-- Updated_at trigger for ledger_drafts
+DROP TRIGGER IF EXISTS update_ledger_drafts_updated_at ON ledger_drafts;
+CREATE TRIGGER update_ledger_drafts_updated_at
+    BEFORE UPDATE ON ledger_drafts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

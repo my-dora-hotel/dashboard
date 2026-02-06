@@ -6,8 +6,9 @@ import {
   Category,
   AccountWithCategory,
   LedgerEntryWithRelations,
+  LedgerDraft,
 } from "@/types/database"
-import { IconPlus, IconX } from "@tabler/icons-react"
+import { IconFileText, IconPlus, IconTrash, IconX } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,13 +17,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { CategoryCombobox } from "@/components/category-combobox"
+import { AccountCombobox } from "@/components/account-combobox"
 import { DateRangeFilter } from "@/components/date-range-filter"
 import { LedgerDataTable } from "@/components/ledger-data-table"
 import { LedgerChart } from "@/components/ledger-chart"
 import { SlidingNumber } from "@/components/motion-primitives/sliding-number"
 import { toast } from "sonner"
 import { parseISO } from "date-fns"
+import { formatShortRelativeTime } from "@/lib/date-utils"
 
 // Wrapper to animate on initial mount
 function AnimatedSlidingNumber({
@@ -80,13 +88,43 @@ export default function LedgerPage() {
 
   // Filters
   const [filterCategoryId, setFilterCategoryId] = useState<string>("")
+  const [filterAccountId, setFilterAccountId] = useState<string>("")
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>()
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>()
 
   // Create dialog state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
 
+  // Draft state
+  const [drafts, setDrafts] = useState<LedgerDraft[]>([])
+  const [resumeDraft, setResumeDraft] = useState<LedgerDraft | null>(null)
+  const [isDraftsPopoverOpen, setIsDraftsPopoverOpen] = useState(false)
+
   const supabase = createClient()
+
+  const fetchDrafts = useCallback(async () => {
+    const { data } = await supabase
+      .from("ledger_drafts")
+      .select("*")
+      .order("updated_at", { ascending: false })
+    if (data) {
+      setDrafts(data as unknown as LedgerDraft[])
+    }
+  }, [supabase])
+
+  const handleDeleteDraft = useCallback(async (draftId: string) => {
+    await supabase.from("ledger_drafts").delete().eq("id", draftId)
+    setDrafts((prev) => prev.filter((d) => d.id !== draftId))
+    toast.success("Taslak silindi")
+  }, [supabase])
+
+  const handleResumeDraft = useCallback((draftId: string) => {
+    const draft = drafts.find((d) => d.id === draftId)
+    if (!draft) return
+    setResumeDraft(draft)
+    setIsCreateDialogOpen(true)
+    setIsDraftsPopoverOpen(false)
+  }, [drafts])
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
@@ -116,12 +154,26 @@ export default function LedgerPage() {
 
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+    fetchDrafts()
+  }, [fetchData, fetchDrafts])
+
+  // Clear account filter if selected account doesn't belong to selected category
+  useEffect(() => {
+    if (filterCategoryId && filterAccountId) {
+      const selectedAccount = accounts.find((acc) => acc.id === filterAccountId)
+      if (selectedAccount && selectedAccount.category_id !== filterCategoryId) {
+        setFilterAccountId("")
+      }
+    }
+  }, [filterCategoryId, accounts, filterAccountId])
 
   // Filter entries
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
       if (filterCategoryId && entry.category_id !== filterCategoryId) {
+        return false
+      }
+      if (filterAccountId && entry.account_id !== filterAccountId) {
         return false
       }
       if (filterStartDate) {
@@ -134,7 +186,7 @@ export default function LedgerPage() {
       }
       return true
     })
-  }, [entries, filterCategoryId, filterStartDate, filterEndDate])
+  }, [entries, filterCategoryId, filterAccountId, filterStartDate, filterEndDate])
 
   // Unique statement suggestions from all ledger entries (DB-wide), for autocomplete
   const statementSuggestions = useMemo(() => {
@@ -167,6 +219,7 @@ export default function LedgerPage() {
 
   const clearFilters = () => {
     setFilterCategoryId("")
+    setFilterAccountId("")
   }
 
   const handleEntryAdded = useCallback((newEntry: LedgerEntryWithRelations) => {
@@ -255,21 +308,77 @@ export default function LedgerPage() {
                 categories={categories}
                 value={filterCategoryId}
                 onValueChange={setFilterCategoryId}
-                placeholder="Tüm kategoriler"
+                placeholder="Tüm Ana Hesaplar"
                 includeAllOption
               />
             </div>
-            {filterCategoryId && (
+            <div className="w-[200px]">
+              <AccountCombobox
+                accounts={accounts}
+                value={filterAccountId}
+                onValueChange={setFilterAccountId}
+                placeholder="Tüm Alt Hesaplar"
+                includeAllOption
+                categoryFilter={filterCategoryId || undefined}
+              />
+            </div>
+            {(filterCategoryId || filterAccountId) && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <IconX className="size-4" />
                 Filtreyi Temizle
               </Button>
             )}
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <IconPlus className="size-4" />
-            Kayıt
-          </Button>
+          <div className="flex items-center gap-2">
+            {drafts.length > 0 && (
+              <Popover open={isDraftsPopoverOpen} onOpenChange={setIsDraftsPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline">
+                    <IconFileText className="size-4" />
+                    {drafts.length} Taslak
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72 p-1">
+                  <div className="flex flex-col">
+                    {drafts.map((draft, index) => (
+                      <div
+                        key={draft.id}
+                        className="flex items-center justify-between gap-2 rounded-sm px-3 py-2 hover:bg-accent cursor-pointer"
+                        onClick={() => handleResumeDraft(draft.id)}
+                      >
+                        <span className="text-sm font-medium">
+                          Taslak {index + 1}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatShortRelativeTime(new Date(draft.created_at))}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground hover:text-destructive shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteDraft(draft.id)
+                            }}
+                          >
+                            <IconTrash className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            <Button onClick={() => {
+              setResumeDraft(null)
+              setIsCreateDialogOpen(true)
+            }}>
+              <IconPlus className="size-4" />
+              Kayıt
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -293,6 +402,8 @@ export default function LedgerPage() {
         onEntryDeleted={handleEntryDeleted}
         isCreateDialogOpen={isCreateDialogOpen}
         setIsCreateDialogOpen={setIsCreateDialogOpen}
+        resumeDraft={resumeDraft}
+        onDraftChange={fetchDrafts}
       />
     </>
   )
