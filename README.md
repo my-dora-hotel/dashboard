@@ -9,16 +9,22 @@ A comprehensive operations and management system designed for Hotel My Dora.
 - **Category Management**: Create categories based on official accounting codes
 - **Account Management**: Create accounts linked to categories
 - **Ledger Entries**: Add entries with date, category, account, description, and amount
-- **Filtering**: Filter by date range and category
+- **Draft System**: Auto-save drafts while creating entries, resume editing anytime
+- **Account Balance Preview**: Real-time balance preview showing current balance, pending changes, and final balance
+- **Filtering**: Filter by date range, category, and account
 - **Grouping**: Group view by category with automatic totals
+- **Keyboard Navigation**: Navigate between rows using arrow keys
 
 ### More modules coming soon...
 
 ## Features
 
 - **Authentication**: Secure login with Supabase Auth
-- **Modern UI**: Clean and responsive interface
+- **Modern UI**: Clean and responsive interface built with shadcn/ui
 - **Real-time Data**: Powered by Supabase
+- **Draft Auto-save**: Automatically save work-in-progress entries as drafts
+- **Balance Preview**: See account balance changes before saving entries
+- **Keyboard Navigation**: Efficient navigation with arrow keys and Tab
 
 ## Tech Stack
 
@@ -80,6 +86,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - `statement` (TEXT): Description
 - `receivable` (DOUBLE): Receivable amount
 - `debt` (DOUBLE): Payable amount
+- `created_at`, `updated_at`: Timestamps
+
+### Ledger Drafts
+- `id` (UUID): Unique identifier
+- `date` (DATE): Draft transaction date
+- `entries` (JSONB): Array of entry rows (account_id, category_id, statement, type, amount)
 - `created_at`, `updated_at`: Timestamps
 
 ## License
