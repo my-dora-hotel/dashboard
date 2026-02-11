@@ -33,7 +33,7 @@ import type {
   AccountSummaryParameters,
   AccountSummaryFilterOption,
 } from "@/types/reports"
-import type { AccountWithCategory, Category } from "@/types/database"
+import type { AccountWithCategory, Category, Json } from "@/types/database"
 
 interface CreateReportDialogProps {
   open: boolean
@@ -183,7 +183,7 @@ export function CreateReportDialog({
           user_id: user.id,
           type: reportType,
           title: title.trim(),
-          parameters,
+          parameters: parameters as unknown as Json,
         })
         .select()
         .single()
