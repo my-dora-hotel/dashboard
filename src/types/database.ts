@@ -170,12 +170,69 @@ export interface Database {
           }
         ];
       };
+      reports: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: "account_statement" | "account_summary";
+          title: string;
+          parameters: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: "account_statement" | "account_summary";
+          title: string;
+          parameters: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: "account_statement" | "account_summary";
+          title?: string;
+          parameters?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reports_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      get_account_statement: {
+        Args: {
+          p_account_id: string;
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Json;
+      };
+      get_account_summary: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+          p_category_id: string | null;
+          p_filter_option: string;
+        };
+        Returns: Json;
+      };
+      get_account_totals: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -228,3 +285,7 @@ export type LedgerDraftUpdate = Database["public"]["Tables"]["ledger_drafts"]["U
 export type LedgerDraft = Omit<LedgerDraftRow, "entries"> & {
   entries: LedgerDraftEntry[];
 };
+
+export type ReportRow = Database["public"]["Tables"]["reports"]["Row"];
+export type ReportInsert = Database["public"]["Tables"]["reports"]["Insert"];
+export type ReportUpdate = Database["public"]["Tables"]["reports"]["Update"];
