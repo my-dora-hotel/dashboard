@@ -8,7 +8,7 @@ import {
   LedgerEntryWithRelations,
   LedgerDraft,
 } from "@/types/database"
-import { IconFileText, IconPlus, IconTrash, IconX } from "@tabler/icons-react"
+import { IconFileText, IconPlus, IconTrash, IconX, IconFileDescription } from "@tabler/icons-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +27,7 @@ import { DateRangeFilter } from "@/components/date-range-filter"
 import { LedgerDataTable } from "@/components/ledger-data-table"
 import { LedgerChart } from "@/components/ledger-chart"
 import { SlidingNumber } from "@/components/motion-primitives/sliding-number"
+import { CreateReportDialog } from "@/components/reports/create-report-dialog"
 import { toast } from "sonner"
 import { parseISO } from "date-fns"
 import { formatShortRelativeTime } from "@/lib/date-utils"
@@ -98,6 +99,9 @@ export default function LedgerPage() {
   const [drafts, setDrafts] = useState<LedgerDraft[]>([])
   const [resumeDraft, setResumeDraft] = useState<LedgerDraft | null>(null)
   const [isDraftsPopoverOpen, setIsDraftsPopoverOpen] = useState(false)
+
+  // Create report dialog state
+  const [isCreateReportDialogOpen, setIsCreateReportDialogOpen] = useState(false)
 
   const supabase = createClient()
 
@@ -333,6 +337,13 @@ export default function LedgerPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateReportDialogOpen(true)}
+            >
+              <IconFileDescription className="size-4" />
+              Rapor Oluştur
+            </Button>
             {drafts.length > 0 && (
               <Popover open={isDraftsPopoverOpen} onOpenChange={setIsDraftsPopoverOpen}>
                 <PopoverTrigger asChild>
@@ -407,6 +418,19 @@ export default function LedgerPage() {
         setIsCreateDialogOpen={setIsCreateDialogOpen}
         resumeDraft={resumeDraft}
         onDraftChange={fetchDrafts}
+      />
+
+      <CreateReportDialog
+        open={isCreateReportDialogOpen}
+        onOpenChange={setIsCreateReportDialogOpen}
+        initialFilters={{
+          startDate: filterStartDate,
+          endDate: filterEndDate,
+          categoryId: filterCategoryId || undefined,
+          accountId: filterAccountId || undefined,
+        }}
+        accounts={accounts}
+        categories={categories}
       />
     </>
   )

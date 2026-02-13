@@ -68,12 +68,18 @@ interface AccountFormData {
   description: string
 }
 
-type LedgerRow = { account_id: string; receivable: number; debt: number }
+interface AccountTotalRow {
+  accountId: string
+  totalDebt: number
+  totalReceivable: number
+}
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountWithCategory[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [ledgerEntries, setLedgerEntries] = useState<LedgerRow[]>([])
+  const [accountTotalsMap, setAccountTotalsMap] = useState<
+    Record<string, { totalReceivable: number; totalDebt: number }>
+  >({})
   const [isLoading, setIsLoading] = useState(true)
   const [filterCategoryId, setFilterCategoryId] = useState<string>("")
   const [searchQuery, setSearchQuery] = useState<string>("")
@@ -89,27 +95,41 @@ export default function AccountsPage() {
     description: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const supabase = createClient()
+
+  // Avoid hydration mismatch: Base UI / Radix generate different IDs on server vs client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const [accountsRes, categoriesRes, entriesRes] = await Promise.all([
+      const [accountsRes, categoriesRes, totalsRes] = await Promise.all([
         supabase.from("accounts").select("*, categories(*)").order("name"),
         supabase.from("categories").select("*").order("id"),
-        supabase
-          .from("ledger_entries")
-          .select("account_id, receivable, debt"),
+        supabase.rpc("get_account_totals"),
       ])
 
       if (accountsRes.error) throw accountsRes.error
       if (categoriesRes.error) throw categoriesRes.error
-      if (entriesRes.error) throw entriesRes.error
+      if (totalsRes.error) throw totalsRes.error
 
       setAccounts((accountsRes.data as AccountWithCategory[]) || [])
       setCategories(categoriesRes.data || [])
-      setLedgerEntries(entriesRes.data || [])
+
+      const rows = (totalsRes.data as unknown as AccountTotalRow[]) || []
+      const map: Record<string, { totalReceivable: number; totalDebt: number }> =
+        {}
+      for (const row of rows) {
+        map[row.accountId] = {
+          totalDebt: Number(row.totalDebt),
+          totalReceivable: Number(row.totalReceivable),
+        }
+      }
+      setAccountTotalsMap(map)
     } catch {
       toast.error("Veriler yüklenirken bir hata oluştu")
     } finally {
@@ -145,21 +165,6 @@ export default function AccountsPage() {
     })
   }, [accounts, filterCategoryId, searchQuery])
 
-  const accountTotals = useMemo(() => {
-    const totals: Record<
-      string,
-      { totalReceivable: number; totalDebt: number }
-    > = {}
-    for (const entry of ledgerEntries) {
-      if (!totals[entry.account_id]) {
-        totals[entry.account_id] = { totalReceivable: 0, totalDebt: 0 }
-      }
-      totals[entry.account_id].totalReceivable += entry.receivable ?? 0
-      totals[entry.account_id].totalDebt += entry.debt ?? 0
-    }
-    return totals
-  }, [ledgerEntries])
-
   const sortedAccounts = useMemo(() => {
     const list = [...filteredAccounts]
 
@@ -167,12 +172,12 @@ export default function AccountsPage() {
       return list.sort((a, b) => {
         const aValue =
           sortColumn === "receivable"
-            ? accountTotals[a.id]?.totalReceivable ?? 0
-            : accountTotals[a.id]?.totalDebt ?? 0
+            ? accountTotalsMap[a.id]?.totalReceivable ?? 0
+            : accountTotalsMap[a.id]?.totalDebt ?? 0
         const bValue =
           sortColumn === "receivable"
-            ? accountTotals[b.id]?.totalReceivable ?? 0
-            : accountTotals[b.id]?.totalDebt ?? 0
+            ? accountTotalsMap[b.id]?.totalReceivable ?? 0
+            : accountTotalsMap[b.id]?.totalDebt ?? 0
 
         return sortDirection === "asc" ? aValue - bValue : bValue - aValue
       })
@@ -186,7 +191,7 @@ export default function AccountsPage() {
       if (cmp !== 0) return cmp
       return (a.name ?? "").localeCompare(b.name ?? "", "tr")
     })
-  }, [filteredAccounts, accountTotals, sortColumn, sortDirection])
+  }, [filteredAccounts, accountTotalsMap, sortColumn, sortDirection])
 
   const toggleSort = (column: "receivable" | "debt") => {
     if (sortColumn === column) {
@@ -303,6 +308,20 @@ export default function AccountsPage() {
   const openDeleteDialog = (account: Account) => {
     setSelectedAccount(account)
     setIsDeleteDialogOpen(true)
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-col gap-4 px-4 lg:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="h-9 w-[250px] rounded-md border bg-muted/30" />
+          <div className="h-9 w-[200px] rounded-md border bg-muted/30" />
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Yükleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -446,10 +465,10 @@ export default function AccountsPage() {
                   <Button
                     variant="ghost"
                     className="-mr-3 h-8"
-                    onClick={() => toggleSort("receivable")}
+                    onClick={() => toggleSort("debt")}
                   >
-                    Alacak
-                    {sortColumn === "receivable" ? (
+                    Borç
+                    {sortColumn === "debt" ? (
                       sortDirection === "asc" ? (
                         <IconArrowUp className="ml-2 h-4 w-4" />
                       ) : (
@@ -464,10 +483,10 @@ export default function AccountsPage() {
                   <Button
                     variant="ghost"
                     className="-mr-3 h-8"
-                    onClick={() => toggleSort("debt")}
+                    onClick={() => toggleSort("receivable")}
                   >
-                    Borç
-                    {sortColumn === "debt" ? (
+                    Alacak
+                    {sortColumn === "receivable" ? (
                       sortDirection === "asc" ? (
                         <IconArrowUp className="ml-2 h-4 w-4" />
                       ) : (
@@ -494,12 +513,12 @@ export default function AccountsPage() {
                     {account.description || "-"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(
-                      accountTotals[account.id]?.totalReceivable ?? 0
-                    )}
+                    {formatCurrency(accountTotalsMap[account.id]?.totalDebt ?? 0)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatCurrency(accountTotals[account.id]?.totalDebt ?? 0)}
+                    {formatCurrency(
+                      accountTotalsMap[account.id]?.totalReceivable ?? 0
+                    )}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
