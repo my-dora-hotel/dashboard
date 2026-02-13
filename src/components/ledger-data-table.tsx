@@ -708,6 +708,32 @@ export function LedgerDataTable({
       ),
     },
     {
+      accessorKey: "debt",
+      header: ({ column }) => (
+        <div className="text-right">
+          <Button
+            variant="ghost"
+            className="-mr-4 h-8 data-[state=open]:bg-accent"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Borç
+            {column.getIsSorted() === "asc" ? (
+              <IconArrowUp className="ml-2 h-4 w-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <IconArrowDown className="ml-2 h-4 w-4" />
+            ) : (
+              <IconArrowsSort className="ml-2 h-4 w-4 opacity-50" />
+            )}
+          </Button>
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="text-right font-medium">
+          {row.original.debt > 0 ? formatCurrency(row.original.debt) : "-"}
+        </div>
+      ),
+    },
+    {
       accessorKey: "receivable",
       header: ({ column }) => (
         <div className="text-right">
@@ -732,32 +758,6 @@ export function LedgerDataTable({
           {row.original.receivable > 0
             ? formatCurrency(row.original.receivable)
             : "-"}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "debt",
-      header: ({ column }) => (
-        <div className="text-right">
-          <Button
-            variant="ghost"
-            className="-mr-4 h-8 data-[state=open]:bg-accent"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Borç
-            {column.getIsSorted() === "asc" ? (
-              <IconArrowUp className="ml-2 h-4 w-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <IconArrowDown className="ml-2 h-4 w-4" />
-            ) : (
-              <IconArrowsSort className="ml-2 h-4 w-4 opacity-50" />
-            )}
-          </Button>
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="text-right font-medium">
-          {row.original.debt > 0 ? formatCurrency(row.original.debt) : "-"}
         </div>
       ),
     },
@@ -1071,10 +1071,10 @@ export function LedgerDataTable({
                         Genel Toplam
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(tableTotals.totalReceivable)}
+                        {formatCurrency(tableTotals.totalDebt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(tableTotals.totalDebt)}
+                        {formatCurrency(tableTotals.totalReceivable)}
                       </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
@@ -1194,8 +1194,8 @@ export function LedgerDataTable({
                         <TableHead>Tarih</TableHead>
                         <TableHead>Hesap</TableHead>
                         <TableHead>Açıklama</TableHead>
-                        <TableHead className="text-right">Alacak</TableHead>
                         <TableHead className="text-right">Borç</TableHead>
+                        <TableHead className="text-right">Alacak</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1212,12 +1212,12 @@ export function LedgerDataTable({
                             {entry.statement || "-"}
                           </TableCell>
                           <TableCell className="text-right font-medium">
+                            {entry.debt > 0 ? formatCurrency(entry.debt) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
                             {entry.receivable > 0
                               ? formatCurrency(entry.receivable)
                               : "-"}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {entry.debt > 0 ? formatCurrency(entry.debt) : "-"}
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
@@ -1256,10 +1256,10 @@ export function LedgerDataTable({
                           Toplam
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(group.totalReceivable)}
+                          {formatCurrency(group.totalDebt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(group.totalDebt)}
+                          {formatCurrency(group.totalReceivable)}
                         </TableCell>
                         <TableCell></TableCell>
                       </TableRow>
@@ -1283,7 +1283,10 @@ export function LedgerDataTable({
 
       {/* Create Dialog - Multi-entry */}
       <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
-        <DialogContent className="sm:max-w-none w-[85vw] max-w-[1100px] !h-[80vh] flex flex-col" style={{ height: '80vh', width: '85vw', maxWidth: '1100px' }}>
+        <DialogContent
+            className="sm:max-w-none w-[85vw] max-w-[1100px] !h-[80vh] flex flex-col"
+            style={{ height: '80vh', width: '85vw', maxWidth: '1100px' }}
+          >
           <DialogHeader>
             <DialogTitle>Yeni Defter Kaydı</DialogTitle>
             <DialogDescription>

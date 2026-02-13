@@ -154,12 +154,7 @@ export function StatementAutocomplete({
     }
   }
 
-  const handleFocus = () => {
-    // Show suggestions on focus if there's already some text
-    if (value.trim().length > 0 && filteredSuggestions.length > 0) {
-      setOpen(true)
-    }
-  }
+  // Do not open suggestions on focus — only when the user types (handleInputChange).
 
   const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
     // Close popover when focus leaves, but not if clicking on the popover
@@ -214,14 +209,19 @@ export function StatementAutocomplete({
   }, [selectedIndex, open])
 
   return (
-    <Popover open={open && shouldShowSuggestions} onOpenChange={setOpen}>
+    <Popover
+      open={open && shouldShowSuggestions}
+      onOpenChange={(next) => {
+        // Only allow closing from outside (e.g. blur, Escape). Do not open on trigger click — open only when typing (handleInputChange).
+        if (!next) setOpen(false)
+      }}
+    >
       <PopoverTrigger asChild>
         <Textarea
           ref={textareaRef}
           id={id}
           value={value}
           onChange={handleInputChange}
-          onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
@@ -231,7 +231,7 @@ export function StatementAutocomplete({
         />
       </PopoverTrigger>
       <PopoverContent
-        className="p-0"
+        className="p-0 overflow-hidden"
         align="start"
         side="bottom"
         sideOffset={4}
@@ -244,7 +244,8 @@ export function StatementAutocomplete({
         <div
           ref={listRef}
           data-statement-autocomplete-list
-          className="max-h-[200px] overflow-y-auto"
+          className="max-h-[200px] min-h-0 overflow-y-auto overscroll-contain"
+          onWheel={(e) => e.stopPropagation()}
         >
           <div className="p-1">
             <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">

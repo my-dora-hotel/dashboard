@@ -2,6 +2,7 @@ import {
   IconBook,
   IconCategory,
   IconUsers,
+  IconFileText,
 } from "@tabler/icons-react"
 import { type Icon } from "@tabler/icons-react"
 
@@ -51,6 +52,14 @@ export const routes: RouteConfig[] = [
     icon: IconUsers,
     showInNav: true,
     navOrder: 3,
+    module: "Muhasebe",
+  },
+  {
+    path: "/accounting/reports",
+    title: "Raporlar",
+    icon: IconFileText,
+    showInNav: true,
+    navOrder: 4,
     module: "Muhasebe",
   },
   {
